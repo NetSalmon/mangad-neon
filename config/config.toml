@@ -1,0 +1,11 @@
+[service.image.thumbnail]
+enabled = true
+width = 200
+height = 200
+
+[service.net]
+host = "127.0.0.1:6789"
+
+[clawer]
+semaphore = 15
+retry = { max_retries = 5, delay = 5 }

@@ -1,7 +1,6 @@
 use crate::core::entities::dao::clawer::{SubTask, Task};
 use crate::error::Error;
 use async_trait::async_trait;
-use nix::libc::sleep;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::sync::Arc;

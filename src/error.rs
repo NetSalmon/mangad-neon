@@ -19,6 +19,8 @@ pub enum Error {
     TestingError(String),
     #[error("max retries error {0}")]
     MaxRetriesError(String),
+    #[error("image error {0}")]
+    ImageError(#[from] image::ImageError),
 }
 
 impl IntoResponse for Error {
@@ -30,6 +32,7 @@ impl IntoResponse for Error {
             | Error::RequestError(_)
             | Error::TestingError(_)
             | Error::MaxRetriesError(_)
+            | Error::ImageError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

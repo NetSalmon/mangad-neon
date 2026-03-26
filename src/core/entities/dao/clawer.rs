@@ -21,14 +21,12 @@ impl Task {
         self.images
             .iter()
             .enumerate()
-            .map(|(index, url)| {
-                SubTask {
-                    url: url.clone(),
-                    headers: self.headers.clone(),
-                    source_id: self.source_id.clone(),
-                    source_site: self.source_site.clone(),
-                    index
-                }
+            .map(|(index, url)| SubTask {
+                url: url.clone(),
+                headers: self.headers.clone(),
+                source_id: self.source_id.clone(),
+                source_site: self.source_site.clone(),
+                index,
             })
             .collect()
     }

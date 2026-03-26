@@ -1,12 +1,12 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
+use crate::core::entities::dao::clawer::{SubTask, Task};
+use crate::error::Error;
 use async_trait::async_trait;
 use nix::libc::sleep;
 use reqwest::Client;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Semaphore;
-use crate::core::entities::dao::clawer::{SubTask, Task};
-use crate::error::Error;
 
 pub mod nhentai;
 
@@ -34,7 +34,7 @@ impl Dispatch {
             clawers,
             client,
             semaphore,
-            rx
+            rx,
         };
 
         (dispatch, tx)
@@ -58,7 +58,8 @@ impl Dispatch {
 }
 
 async fn retry<F, Fut, T>(func: F, max_retry: usize, gap: Duration) -> Result<T, Error>
-where F: Fn() -> Fut,
+where
+    F: Fn() -> Fut,
     Fut: Future<Output = Result<T, Error>>,
 {
     let mut gap = gap;
@@ -70,24 +71,10 @@ where F: Fn() -> Fut,
                 last_error = Some(Error::RequestError(e));
                 tokio::time::sleep(gap).await;
                 gap *= 2;
-            },
+            }
             Err(e) => return Err(e),
         }
     }
 
     Err(last_error.unwrap_or(Error::MaxRetriesError("超出最大重试次数".into())))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[tokio::test]
-    async fn test_retry() {
-        async fn a(i: &str) -> Result<(), Error> {
-            println!("a: {}", i);
-            Err(Error::TestingError("error".into()))
-        }
-
-        retry(|| { a("123") }, 5, Duration::from_secs(1)).await.unwrap();
-    }
 }

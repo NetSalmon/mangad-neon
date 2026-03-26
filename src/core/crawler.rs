@@ -11,14 +11,14 @@ use tokio::sync::Semaphore;
 pub mod nhentai;
 
 #[async_trait]
-pub trait Clawer: Send + Sync {
+pub trait Crawler: Send + Sync {
     fn site(&self) -> &str;
     async fn handle(&self, subtask: &SubTask, client: Arc<Client>) -> Result<(), Error>;
 }
 
 pub struct Dispatch {
     client: Arc<Client>,
-    clawers: HashMap<String, Arc<dyn Clawer>>,
+    clawers: HashMap<String, Arc<dyn Crawler>>,
     semaphore: Arc<Semaphore>,
     rx: tokio::sync::mpsc::Receiver<Task>,
 }
@@ -47,7 +47,7 @@ impl Dispatch {
             };
 
             if let Some(clawer) = self.clawers.get(&task.source_site) {
-                // clawer.handle(&task, Arc::clone(&self.client)).await?;
+                // crawler.handle(&task, Arc::clone(&self.client)).await?;
             } else {
                 // 使用 DefaultClawer
             }

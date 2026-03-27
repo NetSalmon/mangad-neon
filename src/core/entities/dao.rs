@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
-pub mod clawer;
+pub mod crawler;
 
 #[derive(Serialize, Debug)]
 pub struct ResponseBody<T> {

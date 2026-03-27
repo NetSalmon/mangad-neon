@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use crate::core::entities::dao::ResponseBody;
 use axum::Json;
 use axum::http::StatusCode;
@@ -21,6 +22,14 @@ pub enum Error {
     MaxRetriesError(String),
     #[error("image error {0}")]
     ImageError(#[from] image::ImageError),
+    #[error("invalid header name {0}")]
+    InvalidHeaderNameError(#[from] reqwest::header::InvalidHeaderName),
+    #[error("invalid header value {0}")]
+    InvalidHeaderValueError(#[from] reqwest::header::InvalidHeaderValue),
+    #[error("url parse error {0}")]
+    UrlParseError(#[from] url::ParseError),
+    #[error("infallible {0}")]
+    InfallibleError(#[from] Infallible),
 }
 
 impl IntoResponse for Error {
@@ -32,7 +41,11 @@ impl IntoResponse for Error {
             | Error::RequestError(_)
             | Error::TestingError(_)
             | Error::MaxRetriesError(_)
+            | Error::InfallibleError(_)
             | Error::ImageError(_)
+            | Error::InvalidHeaderNameError(_)
+            | Error::InvalidHeaderValueError(_)
+            | Error::UrlParseError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

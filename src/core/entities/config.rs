@@ -1,21 +1,29 @@
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub service: ServiceConfig,
-    pub clawer: ClawerConfig,
+    pub crawler: CrawlerConfig,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ClawerConfig {
-    semaphore: u64,
-    retry: Option<RetryConfig>,
+pub struct CrawlerConfig {
+    pub semaphore: u64,
+    pub storage: PathBuf,
+    pub retry: Option<RetryConfig>,
+    pub image: CrawlerImageConfig,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RetryConfig {
-    max_retries: u64,
-    delay: u64,
+    pub max_retries: usize,
+    pub delay: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CrawlerImageConfig {
+    pub quality: f32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,7 +44,16 @@ pub struct ServiceNetConfig {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ThumbnailConfig {
+    #[serde(default = "thumbnail_default_enabled")]
     pub enabled: bool,
-    pub width: Option<u32>,
-    pub height: Option<u32>,
+    #[serde(default = "thumbnail_default_size")]
+    pub width: u32,
+    #[serde(default = "thumbnail_default_size")]
+    pub height: u32,
+    #[serde(default = "thumbnail_default_quality")]
+    pub quality: f32,
 }
+
+fn thumbnail_default_quality() -> f32 { 75.0 }
+fn thumbnail_default_size() -> u32 { 200 }
+fn thumbnail_default_enabled() -> bool { true }

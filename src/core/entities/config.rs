@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -54,6 +54,12 @@ pub struct ThumbnailConfig {
     pub quality: f32,
 }
 
-fn thumbnail_default_quality() -> f32 { 75.0 }
-fn thumbnail_default_size() -> u32 { 200 }
-fn thumbnail_default_enabled() -> bool { true }
+fn thumbnail_default_quality() -> f32 {
+    75.0
+}
+fn thumbnail_default_size() -> u32 {
+    200
+}
+fn thumbnail_default_enabled() -> bool {
+    true
+}

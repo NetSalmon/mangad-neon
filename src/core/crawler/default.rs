@@ -1,10 +1,10 @@
-use std::sync::Arc;
-use async_trait::async_trait;
-use image::EncodableLayout;
-use reqwest::Client;
 use crate::core::crawler::Crawler;
 use crate::core::entities::dao::crawler::SubTask;
 use crate::error::Error;
+use async_trait::async_trait;
+use image::EncodableLayout;
+use reqwest::Client;
+use std::sync::Arc;
 
 pub struct DefaultClawer {}
 
@@ -15,7 +15,8 @@ impl Crawler for DefaultClawer {
     }
 
     async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, Error> {
-        let resp = client.get(subtask.url)
+        let resp = client
+            .get(subtask.url)
             .headers(subtask.headers)
             .send()
             .await?

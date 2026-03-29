@@ -1,12 +1,13 @@
+use crate::error::Error;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use url::Url;
-use crate::error::Error;
 
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Task {
-    pub id: i32,
     pub images: Vec<String>,
     pub headers: HashMap<String, String>,
     pub source_site: String,

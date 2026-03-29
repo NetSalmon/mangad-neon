@@ -1,8 +1,9 @@
-use std::convert::Infallible;
 use crate::core::entities::dao::ResponseBody;
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use sea_orm::{DbErr, sqlx};
+use std::convert::Infallible;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -30,6 +31,10 @@ pub enum Error {
     UrlParseError(#[from] url::ParseError),
     #[error("infallible {0}")]
     InfallibleError(#[from] Infallible),
+    #[error("database error {0}")]
+    DatabaseError(#[from] DbErr),
+    #[error("database not founded error {0}")]
+    DatabaseNotFoundedError(String),
 }
 
 impl IntoResponse for Error {
@@ -46,6 +51,8 @@ impl IntoResponse for Error {
             | Error::InvalidHeaderNameError(_)
             | Error::InvalidHeaderValueError(_)
             | Error::UrlParseError(_)
+            | Error::DatabaseError(_)
+            | Error::DatabaseNotFoundedError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

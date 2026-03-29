@@ -3,6 +3,7 @@ use crate::core::entities::dao::crawler::{SubTask, Task};
 use crate::core::file::format;
 use crate::error::Error;
 use async_trait::async_trait;
+use default::DefaultClawer;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -10,10 +11,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
-use default::DefaultClawer;
 
-pub mod nhentai;
 mod default;
+pub mod nhentai;
 
 static CACHE_DIRNAME: &str = ".cache";
 
@@ -76,12 +76,17 @@ impl Dispatch {
         while let Some(task) = self.rx.recv().await {
             let (tx, mut rx) = tokio::sync::mpsc::channel::<(usize, Result<(), Error>)>(1024);
             let subtasks = task.spilt()?;
-            let storage_at = storage_root.join(format!("{:0>10}", task.id));
-            let cache_at = storage_root.join(CACHE_DIRNAME).join(format!("{:0>10}", task.id));
+
+            let tid = query_tid(&task).await?;
+            let format_tid = format!("{:0>10}", tid);
+
+            let storage_at = storage_root.join(&format_tid);
+            let cache_at = storage_root.join(CACHE_DIRNAME).join(&format_tid);
 
             for subtask in subtasks {
                 let clone_semaphore = self.semaphore.clone();
-                let clone_crawler = self.clawers
+                let clone_crawler = self
+                    .clawers
                     .get(&task.source_site)
                     .unwrap_or(&self.default_crawler)
                     .clone();
@@ -101,14 +106,16 @@ impl Dispatch {
                                 || clone_crawler.handle(subtask.clone(), clone_client.clone()),
                                 r.max_retries,
                                 r.delay,
-                            ).await?
+                            )
+                            .await?
                         } else {
                             clone_crawler.handle(subtask, clone_client.clone()).await?
                         };
 
                         format(buffer, base_path, 0, 0, 100.0).await?;
                         Ok(())
-                    }.await;
+                    }
+                    .await;
 
                     clone_tx.send((index, res)).await.unwrap();
                 });
@@ -119,8 +126,12 @@ impl Dispatch {
             while let Some((index, res)) = rx.recv().await {
                 print!("subtask [{}] status: ", index);
                 match res {
-                    Ok(_) => { println!("done"); },
-                    Err(_) => { eprintln!("failed"); },
+                    Ok(_) => {
+                        println!("done");
+                    }
+                    Err(_) => {
+                        eprintln!("failed");
+                    }
                 }
             }
         }

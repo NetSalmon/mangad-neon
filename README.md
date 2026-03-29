@@ -104,4 +104,14 @@ CREATE TABLE TAG_METADATA (
 CREATE TRIGGER trg_tag_ref_count
 BEFORE INSERT OR UPDATE OR DELETE ON TAG_METADATA
 FOR EACH ROW EXECUTE FUNCTION fn_tag_ref_counter();
+
+CREATE TYPE task_status AS ENUM (
+    'success', 'processing', 'failure'
+    );
+
+CREATE TABLE TASKS (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY ,
+    status task_status DEFAULT 'processing' ,
+    task JSON NOT NULL
+);
 ```

@@ -64,11 +64,11 @@ CREATE TABLE METADATA (
 
 CREATE TABLE LITERATURES (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY ,
-    metadata_id INTEGER ,
+    metadata_id INTEGER NOT NULL ,
     title TEXT ,
     description TEXT ,
     FOREIGN KEY (metadata_id) REFERENCES METADATA(id) ON DELETE CASCADE ,
-    lang TEXT DEFAULT 'en'
+    lang TEXT NOT NULL DEFAULT 'en'
 );
 
 CREATE UNIQUE INDEX literatures_unq_idx_metadata_title ON LITERATURES (metadata_id, title);

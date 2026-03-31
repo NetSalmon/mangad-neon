@@ -4,6 +4,13 @@ width = 200
 height = 200
 quality = 75.0
 
+[database]
+host = "localhost"
+port = 5432
+database = "manga_neon"
+user = "postgres"
+password = "081525"
+
 [service.net]
 host = "127.0.0.1:6789"
 
@@ -14,3 +21,4 @@ retry = { max_retries = 5, delay = 5 }
 
 [crawler.image]
 quality = 100.0
+semaphore = 8

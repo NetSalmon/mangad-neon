@@ -3,13 +3,14 @@ use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
+    pub database: DatabaseConfig,
     pub service: ServiceConfig,
     pub crawler: CrawlerConfig,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CrawlerConfig {
-    pub semaphore: u64,
+    pub semaphore: usize,
     pub storage: PathBuf,
     pub retry: Option<RetryConfig>,
     pub image: CrawlerImageConfig,
@@ -23,6 +24,7 @@ pub struct RetryConfig {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CrawlerImageConfig {
+    pub semaphore: usize,
     pub quality: f32,
 }
 
@@ -30,6 +32,15 @@ pub struct CrawlerImageConfig {
 pub struct ServiceConfig {
     pub net: ServiceNetConfig,
     pub image: ImageConfig,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DatabaseConfig {
+    pub host: String,
+    pub port: u16,
+    pub database: String,
+    pub user: String,
+    pub password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

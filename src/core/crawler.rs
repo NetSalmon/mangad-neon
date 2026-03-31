@@ -1,13 +1,15 @@
 use crate::core::entities::config::Config;
 use crate::core::entities::dao::crawler::{SubTask, Task};
-use crate::core::file::format;
+use crate::core::entities::inner::{CanonicalizeResult, CanonicalizeTask};
+use crate::core::entities::orm::sea_orm_active_enums::TaskStatus;
+use crate::core::image::Canonicalization;
+use crate::core::repository::Repository;
 use crate::error::Error;
 use async_trait::async_trait;
 use default::DefaultClawer;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
@@ -24,12 +26,14 @@ pub trait Crawler: Send + Sync {
 }
 
 pub struct Dispatch {
+    config: Arc<Config>,
     client: Arc<Client>,
     retry: Option<Retry>,
     default_crawler: Arc<dyn Crawler>,
     clawers: HashMap<String, Arc<dyn Crawler>>,
     semaphore: Arc<Semaphore>,
-    storage_root: PathBuf,
+    storage_root: Arc<PathBuf>,
+    canonical_tx: tokio::sync::mpsc::Sender<CanonicalizeTask>,
     rx: tokio::sync::mpsc::Receiver<Task>,
 }
 
@@ -40,11 +44,13 @@ pub struct Retry {
 }
 
 impl Dispatch {
-    pub fn new(config: &Config) -> (Self, tokio::sync::mpsc::Sender<Task>) {
+    pub fn new(config: Arc<Config>) -> (Self, tokio::sync::mpsc::Sender<Task>) {
         let (tx, rx) = tokio::sync::mpsc::channel::<Task>(1024);
+        let (canonical_tx, canonical_rx) = tokio::sync::mpsc::channel::<CanonicalizeTask>(1024);
         let client = Arc::from(Client::new());
         let clawers = HashMap::new();
-        let semaphore = Arc::new(Semaphore::new(5));
+        let semaphore = Arc::new(Semaphore::new(config.crawler.semaphore));
+        let canonical_semaphore = Arc::new(Semaphore::new(config.crawler.image.semaphore));
 
         let retry = if let Some(ref cfg) = config.crawler.retry {
             let retry = Retry {
@@ -56,14 +62,23 @@ impl Dispatch {
             None
         };
 
+        let mut canonicalization = Canonicalization::new(canonical_rx, canonical_semaphore);
+
+        tokio::spawn(async move {
+            canonicalization.run().await;
+        });
+
         let default_crawler = Arc::new(DefaultClawer {});
+        let storage_root = Arc::new(config.crawler.storage.clone());
 
         let dispatch = Self {
+            config,
             clawers,
             client,
             semaphore,
             default_crawler,
-            storage_root: config.crawler.storage.clone(),
+            canonical_tx,
+            storage_root,
             retry,
             rx,
         };
@@ -71,17 +86,25 @@ impl Dispatch {
         (dispatch, tx)
     }
 
-    pub async fn run(&mut self) -> Result<(), Error> {
+    pub async fn run(&mut self, repo: Arc<Repository>) -> Result<(), Error> {
         let storage_root = self.storage_root.clone();
         while let Some(task) = self.rx.recv().await {
-            let (tx, mut rx) = tokio::sync::mpsc::channel::<(usize, Result<(), Error>)>(1024);
+            let (tx, mut rx) =
+                tokio::sync::mpsc::channel::<(i32, Result<CanonicalizeResult, Error>)>(1024);
             let subtasks = task.spilt()?;
 
-            let tid = query_tid(&task).await?;
+            let tid = repo.insert_task(&task).await?.id;
             let format_tid = format!("{:0>10}", tid);
 
-            let storage_at = storage_root.join(&format_tid);
-            let cache_at = storage_root.join(CACHE_DIRNAME).join(&format_tid);
+            let storage_at = Arc::new(storage_root.join(&format_tid));
+
+            println!("storage at: {:#?}", storage_at);
+
+            let cache_at = Arc::new(storage_root.join(CACHE_DIRNAME).join(&format_tid));
+
+            println!("cache at: {:#?}", cache_at);
+
+            tokio::fs::create_dir_all(&cache_at.as_ref()).await?;
 
             for subtask in subtasks {
                 let clone_semaphore = self.semaphore.clone();
@@ -92,14 +115,15 @@ impl Dispatch {
                     .clone();
 
                 let clone_tx = tx.clone();
+                let clone_canonical_tx = self.canonical_tx.clone();
                 let clone_client = self.client.clone();
                 let retry_setting = self.retry.clone();
                 let index = subtask.index;
-
-                let base_path = PathBuf::from_str("test")?;
+                let config = Arc::clone(&self.config);
+                let base_path = cache_at.clone();
 
                 tokio::spawn(async move {
-                    let res: Result<(), Error> = async {
+                    let res: Result<CanonicalizeResult, Error> = async {
                         let _permit = clone_semaphore.acquire_owned().await;
                         let buffer = if let Some(r) = retry_setting {
                             retry(
@@ -112,8 +136,19 @@ impl Dispatch {
                             clone_crawler.handle(subtask, clone_client.clone()).await?
                         };
 
-                        format(buffer, base_path, 0, 0, 100.0).await?;
-                        Ok(())
+                        let (tx, rx) = tokio::sync::oneshot::channel();
+
+                        let t = CanonicalizeTask {
+                            buffer,
+                            base_path,
+                            pid: index,
+                            quality: config.crawler.image.quality,
+                            repeat: tx,
+                        };
+
+                        clone_canonical_tx.send(t).await?;
+
+                        Ok(rx.await?)
                     }
                     .await;
 
@@ -134,6 +169,10 @@ impl Dispatch {
                     }
                 }
             }
+
+            tokio::fs::rename(&cache_at.as_ref(), &storage_at.as_ref()).await?;
+            repo.update_task_status(tid, TaskStatus::Success).await?;
+            repo.insert_manga_from_task(&task).await?;
         }
 
         Ok(())
@@ -160,8 +199,4 @@ where
     }
 
     Err(last_error.unwrap_or(Error::MaxRetriesError("超出最大重试次数".into())))
-}
-
-async fn query_tid(task: &Task) -> Result<i32, Error> {
-    todo!()
 }

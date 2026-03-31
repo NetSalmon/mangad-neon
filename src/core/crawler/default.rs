@@ -11,7 +11,7 @@ pub struct DefaultClawer {}
 #[async_trait]
 impl Crawler for DefaultClawer {
     fn site(&self) -> &str {
-        todo!()
+        "all"
     }
 
     async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, Error> {

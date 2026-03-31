@@ -1,9 +1,11 @@
 use crate::core::entities::dao::ResponseBody;
+use crate::core::entities::inner::CanonicalizeTask;
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use sea_orm::{DbErr, sqlx};
 use std::convert::Infallible;
+use tokio::task::JoinError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -31,10 +33,16 @@ pub enum Error {
     UrlParseError(#[from] url::ParseError),
     #[error("infallible {0}")]
     InfallibleError(#[from] Infallible),
-    #[error("database error {0}")]
+    #[error("repository error {0}")]
     DatabaseError(#[from] DbErr),
-    #[error("database not founded error {0}")]
+    #[error("repository not founded error {0}")]
     DatabaseNotFoundedError(String),
+    #[error("task join error {0}")]
+    TaskJoinError(#[from] JoinError),
+    #[error("canonical task send error {0}")]
+    CanonicalSendError(#[from] tokio::sync::mpsc::error::SendError<CanonicalizeTask>),
+    #[error("canonical task receive error {0}")]
+    CanonicalReceiveError(#[from] tokio::sync::oneshot::error::RecvError),
 }
 
 impl IntoResponse for Error {
@@ -53,6 +61,9 @@ impl IntoResponse for Error {
             | Error::UrlParseError(_)
             | Error::DatabaseError(_)
             | Error::DatabaseNotFoundedError(_)
+            | Error::TaskJoinError(_)
+            | Error::CanonicalSendError(_)
+            | Error::CanonicalReceiveError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

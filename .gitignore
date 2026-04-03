@@ -1,4 +1,4 @@
 /target
 /test
 .env
-./config/config.toml
+/config/config.toml

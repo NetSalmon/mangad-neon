@@ -59,6 +59,24 @@ impl Repository {
 
         Ok(resp)
     }
+
+    pub async fn update_task_status_with_reason(
+        &self,
+        id: i32,
+        task_status: TaskStatus,
+        reason: Error,
+    ) -> Result<tasks::Model, Error> {
+        let new = tasks::ActiveModel {
+            id: Set(id),
+            status: Set(Some(task_status)),
+            ending_reason: Set(Some(reason.to_string())),
+            ..Default::default()
+        };
+
+        let resp = new.update(&self.db).await?;
+
+        Ok(resp)
+    }
 }
 
 impl Repository {

@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use crate::core::entities::config::Config;
 use crate::core::service::service;
 use crate::error::Error;
+use std::sync::Arc;
 
 pub mod core;
 pub mod error;

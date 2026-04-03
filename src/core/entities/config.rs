@@ -12,7 +12,8 @@ pub struct Config {
 pub struct CrawlerConfig {
     pub semaphore: usize,
     pub storage: PathBuf,
-    pub retry: Option<RetryConfig>,
+    #[serde(default = "retry_default")]
+    pub retry: RetryConfig,
     pub image: CrawlerImageConfig,
 }
 
@@ -20,6 +21,15 @@ pub struct CrawlerConfig {
 pub struct RetryConfig {
     pub max_retries: usize,
     pub delay: u64,
+    pub max_delay: u64,
+}
+
+fn retry_default() -> RetryConfig {
+    RetryConfig {
+        max_delay: 30,
+        delay: 2,
+        max_retries: 5,
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]

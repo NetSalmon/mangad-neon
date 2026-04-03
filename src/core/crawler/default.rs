@@ -6,10 +6,10 @@ use image::EncodableLayout;
 use reqwest::Client;
 use std::sync::Arc;
 
-pub struct DefaultClawer {}
+pub struct DefaultCrawler {}
 
 #[async_trait]
-impl Crawler for DefaultClawer {
+impl Crawler for DefaultCrawler {
     fn site(&self) -> &str {
         "all"
     }
@@ -26,5 +26,26 @@ impl Crawler for DefaultClawer {
             .to_vec();
 
         Ok(resp)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[tokio::test]
+    async fn test_crawler() {
+        let client = Arc::new(Client::new());
+        let crawler = DefaultCrawler {};
+
+        let subtask = SubTask {
+            url: "https://192.168.31.194/1231.img".parse().unwrap(),
+            headers: Default::default(),
+            source_site: Arc::new("all".to_string()),
+            index: 0,
+            extra: None,
+        };
+
+        let res = crawler.handle(subtask, client).await;
+        println!("{:#?}", res);
     }
 }

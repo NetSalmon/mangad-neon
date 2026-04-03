@@ -5,6 +5,7 @@ use axum::response::IntoResponse;
 use axum::Json;
 use sea_orm::DbErr;
 use std::convert::Infallible;
+use tokio::sync::AcquireError;
 use tokio::task::JoinError;
 
 #[derive(thiserror::Error, Debug)]
@@ -45,6 +46,8 @@ pub enum Error {
     CanonicalSendError(#[from] tokio::sync::mpsc::error::SendError<CanonicalizeTask>),
     #[error("canonical task receive error {0}")]
     CanonicalReceiveError(#[from] tokio::sync::oneshot::error::RecvError),
+    #[error("semaphore closed error {0}")]
+    SemaphoreCloseError(#[from] AcquireError),
 }
 
 impl IntoResponse for Error {
@@ -67,6 +70,7 @@ impl IntoResponse for Error {
             | Error::CanonicalSendError(_)
             | Error::CanonicalReceiveError(_)
             | Error::InnerTaskAddError(_)
+            | Error::SemaphoreCloseError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

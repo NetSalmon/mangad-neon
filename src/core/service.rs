@@ -1,11 +1,12 @@
 pub mod handlers;
-pub mod router;
+pub mod middleware;
 
 use super::entities::config::Config;
 use crate::Error;
 use crate::core::crawler::Dispatch;
 use crate::core::entities::inner::InnerTask;
 use crate::core::repository::Repository;
+use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::{get, post};
 use std::sync::Arc;
 
@@ -32,6 +33,7 @@ pub async fn service(config: Arc<Config>) -> Result<(), Error> {
     let router = axum::Router::new()
         .route("/health", get(handlers::basic::health))
         .route("/tasks", post(handlers::business::add_tasks))
+        .layer(from_fn_with_state(state.clone(), middleware::authorization))
         .with_state(state.clone());
 
     let app = axum::serve(addr, router).await?;

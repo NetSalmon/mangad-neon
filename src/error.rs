@@ -1,8 +1,8 @@
 use crate::core::entities::dao::ResponseBody;
 use crate::core::entities::inner::{CanonicalizeTask, InnerTask};
+use axum::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use sea_orm::DbErr;
 use std::convert::Infallible;
 use tokio::sync::AcquireError;
@@ -48,6 +48,8 @@ pub enum Error {
     CanonicalReceiveError(#[from] tokio::sync::oneshot::error::RecvError),
     #[error("semaphore closed error {0}")]
     SemaphoreCloseError(#[from] AcquireError),
+    #[error("token hash error {0}")]
+    TokenHashError(String),
 }
 
 impl IntoResponse for Error {
@@ -71,6 +73,7 @@ impl IntoResponse for Error {
             | Error::CanonicalReceiveError(_)
             | Error::InnerTaskAddError(_)
             | Error::SemaphoreCloseError(_)
+            | Error::TokenHashError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

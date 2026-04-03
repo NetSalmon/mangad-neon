@@ -1,5 +1,4 @@
 use crate::error::Error;
-use image::EncodableLayout;
 use std::path::PathBuf;
 
 pub async fn format(

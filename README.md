@@ -8,26 +8,28 @@ CREATE TYPE tag_type AS ENUM (
     'chara',
     'lang',
     'group'
-);
+    );
 
-CREATE TABLE TAGS (
-    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY ,
-    type tag_type NOT NULL ,
-    label TEXT NOT NULL ,
-    canonical_id INTEGER ,
-    ref_count INTEGER DEFAULT 0 ,
-    FOREIGN KEY (canonical_id) REFERENCES TAGS(id) ON DELETE CASCADE
+CREATE TABLE TAGS
+(
+    id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    type         tag_type NOT NULL,
+    label        TEXT     NOT NULL,
+    canonical_id INTEGER,
+    ref_count    INTEGER DEFAULT 0,
+    FOREIGN KEY (canonical_id) REFERENCES TAGS (id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX tag_entities_type_data
-ON TAGS ( type, label);
+    ON TAGS (type, label);
 
 CREATE OR REPLACE FUNCTION fn_ensure_tag_canonical_integrity()
-RETURNS TRIGGER
-AS $$
+    RETURNS TRIGGER
+AS
+$$
 DECLARE
-    canonical_type tag_type;
-    target_id INTEGER;
+    canonical_type      tag_type;
+    target_id           INTEGER;
     target_canonical_id INTEGER;
 BEGIN
     IF NEW.canonical_id IS NULL THEN
@@ -35,7 +37,8 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    SELECT type, id, canonical_id INTO STRICT canonical_type, target_id, target_canonical_id
+    SELECT type, id, canonical_id
+    INTO STRICT canonical_type, target_id, target_canonical_id
     FROM TAGS
     WHERE id = NEW.canonical_id;
 
@@ -53,28 +56,33 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_tags_validate_canonical
-BEFORE INSERT OR UPDATE ON TAGS
-FOR EACH ROW EXECUTE FUNCTION fn_ensure_tag_canonical_integrity();
+    BEFORE INSERT OR UPDATE
+    ON TAGS
+    FOR EACH ROW
+EXECUTE FUNCTION fn_ensure_tag_canonical_integrity();
 
-CREATE TABLE METADATA (
-    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY ,
-    page_count INTEGER NOT NULL ,
-    upload TIMESTAMP DEFAULT now()
+CREATE TABLE METADATA
+(
+    id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    page_count INTEGER NOT NULL,
+    upload     TIMESTAMP DEFAULT now()
 );
 
-CREATE TABLE LITERATURES (
-    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY ,
-    metadata_id INTEGER NOT NULL ,
-    title TEXT ,
-    description TEXT ,
-    FOREIGN KEY (metadata_id) REFERENCES METADATA(id) ON DELETE CASCADE ,
-    lang TEXT NOT NULL DEFAULT 'en'
+CREATE TABLE LITERATURES
+(
+    id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    metadata_id INTEGER NOT NULL,
+    title       TEXT,
+    description TEXT,
+    FOREIGN KEY (metadata_id) REFERENCES METADATA (id) ON DELETE CASCADE,
+    lang        TEXT    NOT NULL DEFAULT 'en'
 );
 
 CREATE UNIQUE INDEX literatures_unq_idx_metadata_title ON LITERATURES (metadata_id, title);
 
 CREATE OR REPLACE FUNCTION fn_tag_ref_counter()
-    RETURNS TRIGGER AS $$
+    RETURNS TRIGGER AS
+$$
 BEGIN
     IF (TG_OP = 'INSERT') THEN
         UPDATE TAGS SET ref_count = ref_count + 1 WHERE id = NEW.tag_id;
@@ -93,25 +101,49 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TABLE TAG_METADATA (
-    metadata_id INTEGER ,
-    tag_id INTEGER ,
-    PRIMARY KEY (metadata_id, tag_id) ,
-    FOREIGN KEY (metadata_id) REFERENCES METADATA (id) ON DELETE CASCADE ,
+CREATE TABLE TAG_METADATA
+(
+    metadata_id INTEGER,
+    tag_id      INTEGER,
+    PRIMARY KEY (metadata_id, tag_id),
+    FOREIGN KEY (metadata_id) REFERENCES METADATA (id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES TAGS (id) ON DELETE CASCADE
 );
 
 CREATE TRIGGER trg_tag_ref_count
-BEFORE INSERT OR UPDATE OR DELETE ON TAG_METADATA
-FOR EACH ROW EXECUTE FUNCTION fn_tag_ref_counter();
+    BEFORE INSERT OR UPDATE OR DELETE
+    ON TAG_METADATA
+    FOR EACH ROW
+EXECUTE FUNCTION fn_tag_ref_counter();
 
 CREATE TYPE task_status AS ENUM (
     'success', 'processing', 'failure'
     );
 
-CREATE TABLE TASKS (
-    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY ,
-    status task_status DEFAULT 'processing' ,
-    task JSON NOT NULL
+CREATE TABLE TASKS
+(
+    id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    status        task_status DEFAULT 'processing',
+    task          JSON                                  NOT NULL,
+    ending_reason TEXT,
+    create_time   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    update_time   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
+
+CREATE OR REPLACE FUNCTION fn_auto_modify_update_time()
+    RETURNS TRIGGER
+AS
+$$
+BEGIN
+    NEW.update_time = now();
+    RETURN NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_auto_modify_update_time
+    BEFORE UPDATE
+    ON TASKS
+    FOR EACH ROW
+EXECUTE FUNCTION fn_auto_modify_update_time();
 ```

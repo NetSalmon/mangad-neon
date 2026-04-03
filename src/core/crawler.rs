@@ -88,17 +88,13 @@ impl Dispatch {
 
     pub async fn run(&mut self, repo: Arc<Repository>) -> Result<(), Error> {
         let storage_root = self.storage_root.clone();
-        while let Some(task) = self.rx.recv().await {
+        'main_loop: while let Some(task) = self.rx.recv().await {
             let (tx, mut rx) =
                 tokio::sync::mpsc::channel::<(i32, Result<CanonicalizeResult, Error>)>(1024);
-            let subtasks = task.spilt()?;
+            let subtasks = task.split()?;
 
             let tid = repo.insert_task(&task).await?.id;
             let format_tid = format!("{:0>10}", tid);
-
-            let storage_at = Arc::new(storage_root.join(&format_tid));
-
-            println!("storage at: {:#?}", storage_at);
 
             let cache_at = Arc::new(storage_root.join(CACHE_DIRNAME).join(&format_tid));
 
@@ -165,14 +161,20 @@ impl Dispatch {
                         println!("done");
                     }
                     Err(_) => {
-                        eprintln!("failed");
+                        println!("failed");
+                        repo.update_task_status(tid, TaskStatus::Failure).await?;
+                        continue 'main_loop;
                     }
                 }
             }
 
+            println!("all download done");
+            let manga = repo.insert_manga_from_task(&task).await?;
+            let format_mid = format!("{:0>10}", manga.id);
+            let storage_at = Arc::new(storage_root.join(&format_mid));
+            println!("storage at: {:#?}", storage_at);
             tokio::fs::rename(&cache_at.as_ref(), &storage_at.as_ref()).await?;
             repo.update_task_status(tid, TaskStatus::Success).await?;
-            repo.insert_manga_from_task(&task).await?;
         }
 
         Ok(())
@@ -199,4 +201,61 @@ where
     }
 
     Err(last_error.unwrap_or(Error::MaxRetriesError("超出最大重试次数".into())))
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    use super::*;
+
+    #[tokio::test]
+    async fn test_crawler() {
+        let c = toml::from_str::<Config>(&std::fs::read_to_string("./config/config.toml").unwrap()).unwrap();
+        let c = Arc::new(c);
+        let (mut d, tx) = Dispatch::new(c.clone());
+        let repo = Arc::new(Repository::new(c.clone()).await.unwrap());
+
+        tokio::spawn(async move{
+            let r = d.run(repo).await;
+            println!("{:?}", r);
+        });
+
+        let task = Task {
+            images: vec![
+                "http://localhost/00000049/00001.webp".to_string(),
+                "http://localhost/00000048/00002.webp".to_string(),
+                "http://localhost/00000048/00002.webp".to_string(),
+                "http://localhost/00000048/00002.webp".to_string(),
+                "http://localhost/00000048/00001.webp".to_string(),
+                "http://localhost/00000049/00004.webp".to_string(),
+                "http://localhost/00000048/00002.webp".to_string(),
+                "http://localhost/00000048/00001.webp".to_string(),
+                "http://localhost/00000048/00002.webp".to_string(),
+                "http://localhost/00000048/00003.webp".to_string(),
+                "http://localhost/00000049/00001.webp".to_string(),
+                "http://localhost/00000048/00003.webp".to_string(),
+                "http://localhost/00000048/00004.webp".to_string(),
+                "http://localhost/00000048/00002.webp".to_string(),
+                "http://localhost/00000048/00001.webp".to_string(),
+                "http://localhost/00000049/00003.webp".to_string(),
+                "http://localhost/00000048/00003.webp".to_string(),
+                "http://localhost/00000048/00004.webp".to_string(),
+                "http://localhost/00000048/00001.webp".to_string(),
+                "http://localhost/00000048/00004.webp".to_string(),
+                "http://localhost/00000049/00002.webp".to_string(),
+                "http://localhost/00000049/00004.webp".to_string(),
+            ],
+            tags: vec![],
+            literatures: vec![],
+            headers: Default::default(),
+            source_site: "dell".to_string(),
+            extra: Some(json!({
+                "source_id": 12
+            })),
+        };
+
+        tx.send(task).await.unwrap();
+
+        tokio::time::sleep(Duration::from_secs(30)).await;
+    }
 }

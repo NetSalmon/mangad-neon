@@ -91,6 +91,9 @@ impl Repository {
         mid: i32,
         tags: &Vec<tags::Model>,
     ) -> Result<Vec<tag_metadata::Model>, Error> {
+        if tags.is_empty() {
+            return Ok(vec![]);
+        }
         let active_models: Vec<tag_metadata::ActiveModel> = tags
             .iter()
             .map(|tag| tag_metadata::ActiveModel {
@@ -109,6 +112,9 @@ impl Repository {
         mid: i32,
         literatures: &Vec<Literature>,
     ) -> Result<Vec<literatures::Model>, Error> {
+        if literatures.is_empty() {
+            return Ok(vec![]);
+        }
         let active_models: Vec<literatures::ActiveModel> = literatures
             .into_iter()
             .map(|literature| literatures::ActiveModel {
@@ -145,6 +151,9 @@ impl Repository {
         tx: &DatabaseTransaction,
         tags: &Vec<Tag>,
     ) -> Result<Vec<tags::Model>, Error> {
+        if tags.is_empty() {
+            return Ok(vec![]);
+        }
         let active_models: Vec<tags::ActiveModel> = tags
             .into_iter()
             .map(|tag| tags::ActiveModel {

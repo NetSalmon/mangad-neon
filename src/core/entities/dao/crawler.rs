@@ -66,10 +66,10 @@ pub struct Literature {
 pub struct Task {
     pub images: Vec<String>,
     pub tags: Vec<Tag>,
-    pub literatures: Vec<Literature>,
+    pub literatures: Vec<Literature>, // 漫画数据的所有文字记录
     pub headers: HashMap<String, String>,
     pub source_site: String,
-    pub source_id: String,
+    pub extra: Option<serde_json::Value>, // 把crawler处理时需要的附加数据放这
 }
 
 #[derive(Clone)]
@@ -77,12 +77,12 @@ pub struct SubTask {
     pub url: Url,
     pub headers: HeaderMap,
     pub source_site: Arc<String>,
-    pub source_id: Arc<String>,
     pub index: i32,
+    pub extra: Option<Arc<serde_json::Value>>,
 }
 
 impl Task {
-    pub fn spilt(&self) -> Result<Vec<SubTask>, Error> {
+    pub fn split(&self) -> Result<Vec<SubTask>, Error> {
         let mut subtasks = vec![];
 
         let mut headers = HeaderMap::new();
@@ -91,15 +91,19 @@ impl Task {
         }
 
         let source_site = Arc::new(self.source_site.clone());
-        let source_id = Arc::new(self.source_id.clone());
+        let extra = if let Some(data) = self.extra.clone() {
+            Some(Arc::new(data))
+        } else {
+            None
+        };
 
         for (index, image) in self.images.iter().enumerate() {
             let subtask = SubTask {
                 url: image.parse()?,
                 headers: headers.clone(),
                 source_site: source_site.clone(),
-                source_id: source_id.clone(),
                 index: index as i32,
+                extra: extra.clone(),
             };
 
             subtasks.push(subtask);

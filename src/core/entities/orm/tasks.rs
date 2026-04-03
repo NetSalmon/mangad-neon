@@ -10,6 +10,10 @@ pub struct Model {
     pub id: i32,
     pub status: Option<TaskStatus>,
     pub task: Json,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub ending_reason: Option<String>,
+    pub create_time: DateTime,
+    pub update_time: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

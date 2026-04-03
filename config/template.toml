@@ -9,14 +9,14 @@ host = "localhost"
 port = 5432
 database = "manga_neon"
 user = "postgres"
-password = "081525"
+password = "ENTER YOU PASSWD IN HERE"
 
 [service.net]
 host = "127.0.0.1:6789"
 
 [crawler]
 semaphore = 15
-storage = "/home/netsalmon/.cache/mangad-neon/"
+storage = "ENTER YOU STORAGE DIRECTORY"
 retry = { max_retries = 2, delay = 2, max_delay = 30 }
 
 [crawler.image]

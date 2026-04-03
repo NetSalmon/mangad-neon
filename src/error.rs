@@ -50,6 +50,10 @@ pub enum Error {
     SemaphoreCloseError(#[from] AcquireError),
     #[error("token hash error {0}")]
     TokenHashError(String),
+    #[error("uuid error {0}")]
+    UuidError(#[from] uuid::Error),
+    #[error("invalid format")]
+    InvalidTokenFormat,
 }
 
 impl IntoResponse for Error {
@@ -74,6 +78,8 @@ impl IntoResponse for Error {
             | Error::InnerTaskAddError(_)
             | Error::SemaphoreCloseError(_)
             | Error::TokenHashError(_)
+            | Error::UuidError(_)
+            | Error::InvalidTokenFormat
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

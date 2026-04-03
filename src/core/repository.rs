@@ -1,9 +1,14 @@
 use crate::core::entities::config::Config;
 use crate::core::entities::dao::crawler::{Literature, Tag, Task};
+use crate::core::entities::inner::ExpireTime;
 use crate::core::entities::orm::prelude::Tasks;
 use crate::core::entities::orm::sea_orm_active_enums::TaskStatus;
-use crate::core::entities::orm::{literatures, metadata, tag_metadata, tags, tasks};
+use crate::core::entities::orm::{literatures, metadata, tag_metadata, tags, tasks, tokens};
+use crate::core::token;
+use crate::core::token::TokenTrait;
 use crate::error::Error;
+use chrono::Utc;
+use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, DatabaseTransaction, QueryFilter, TransactionTrait,
     sea_query,
@@ -203,5 +208,91 @@ impl Repository {
         let result = tags::Entity::find().filter(condition).all(tx).await?;
 
         Ok(result)
+    }
+
+    pub async fn verify_token(&self, token: &str) -> Result<bool, Error> {
+        let uuid = token::get_uuid(&token)?;
+        let Some(model) = tokens::Entity::find_by_id(uuid).one(&self.db).await? else {
+            return Ok(false);
+        };
+
+        if model.is_revoked {
+            return Ok(false);
+        }
+        let Some(expire_time) = model.expire_time else {
+            return Ok(true);
+        };
+        if Utc::now() > expire_time.with_timezone(&Utc) {
+            return Ok(false);
+        }
+
+        Ok(token::verify_hash(&token, &model.hash)?)
+    }
+
+    pub async fn create_token(
+        &self,
+        expire_time: ExpireTime,
+        remark: Option<String>,
+        description: Option<String>,
+    ) -> Result<(tokens::Model, String), Error> {
+        let (token, uuid) = token::gen_token();
+        let now: DateTimeWithTimeZone = Utc::now().with_timezone(&Utc).into();
+        let expire = expire_time.get_expire_time(now);
+        let active = tokens::ActiveModel {
+            id: Set(uuid),
+            hash: Set(token::hash(&token)?),
+            remark: Set(remark),
+            description: Set(description),
+            create_time: Set(now).into(),
+            expire_time: Set(expire).into(),
+            ..Default::default()
+        };
+
+        let model = tokens::Entity::insert(active)
+            .exec_with_returning(&self.db)
+            .await?;
+
+        Ok((model, token))
+    }
+
+    pub async fn revoke_token<T>(&self, t: &T) -> Result<(), Error>
+    where
+        T: TokenTrait,
+    {
+        let uuid = t.uuid()?;
+        let active = tokens::ActiveModel {
+            id: Set(uuid),
+            is_revoked: Set(true),
+            revoke_time: Set(Some(Utc::now().into())),
+            ..Default::default()
+        };
+
+        tokens::Entity::update(active).exec(&self.db).await?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core::repository::*;
+    #[tokio::test]
+    async fn t() {
+        let config = Arc::new(
+            toml::from_str(&std::fs::read_to_string("./config/config.toml").unwrap()).unwrap(),
+        );
+
+        let repo = Arc::new(Repository::new(config).await.unwrap());
+
+        let (_, token) = repo
+            .create_token(ExpireTime::Short, Some("test".to_string()), None)
+            .await
+            .unwrap();
+
+        println!("{:#?}", repo.verify_token(&token).await.unwrap());
+
+        repo.revoke_token(&token).await.unwrap();
+
+        println!("{:#?}", repo.verify_token(&token).await.unwrap());
     }
 }

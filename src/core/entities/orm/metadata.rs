@@ -8,7 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub page_count: i32,
-    pub upload: Option<DateTime>,
+    pub upload: Option<DateTimeWithTimeZone>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

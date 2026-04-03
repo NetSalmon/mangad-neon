@@ -12,8 +12,8 @@ pub struct Model {
     pub task: Json,
     #[sea_orm(column_type = "Text", nullable)]
     pub ending_reason: Option<String>,
-    pub create_time: DateTime,
-    pub update_time: DateTime,
+    pub create_time: DateTimeWithTimeZone,
+    pub update_time: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

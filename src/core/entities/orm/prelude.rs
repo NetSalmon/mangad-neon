@@ -5,3 +5,4 @@ pub use super::metadata::Entity as Metadata;
 pub use super::tag_metadata::Entity as TagMetadata;
 pub use super::tags::Entity as Tags;
 pub use super::tasks::Entity as Tasks;
+pub use super::tokens::Entity as Tokens;

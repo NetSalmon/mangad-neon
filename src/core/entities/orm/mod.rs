@@ -8,3 +8,4 @@ pub mod sea_orm_active_enums;
 pub mod tag_metadata;
 pub mod tags;
 pub mod tasks;
+pub mod tokens;

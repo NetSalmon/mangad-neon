@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::core::entities::config::Config;
 use crate::core::service::service;
 use crate::error::Error;
@@ -19,5 +20,5 @@ async fn main() -> Result<(), Error> {
 
     println!("CONFIG:\n{:#?}", config);
 
-    Ok(service(config).await?)
+    Ok(service(Arc::new(config)).await?)
 }

@@ -1,6 +1,6 @@
 use crate::core::entities::config::Config;
-use crate::core::entities::dao::crawler::{SubTask, Task};
-use crate::core::entities::inner::{CanonicalizeResult, CanonicalizeTask};
+use crate::core::entities::dao::crawler::SubTask;
+use crate::core::entities::inner::{CanonicalizeResult, CanonicalizeTask, InnerTask};
 use crate::core::entities::orm::sea_orm_active_enums::TaskStatus;
 use crate::core::image::Canonicalization;
 use crate::core::repository::Repository;
@@ -15,7 +15,6 @@ use std::time::Duration;
 use tokio::sync::Semaphore;
 
 mod default;
-pub mod nhentai;
 
 static CACHE_DIRNAME: &str = ".cache";
 
@@ -34,7 +33,7 @@ pub struct Dispatch {
     semaphore: Arc<Semaphore>,
     storage_root: Arc<PathBuf>,
     canonical_tx: tokio::sync::mpsc::Sender<CanonicalizeTask>,
-    rx: tokio::sync::mpsc::Receiver<Task>,
+    rx: tokio::sync::mpsc::Receiver<InnerTask>,
 }
 
 #[derive(Copy, Clone)]
@@ -44,8 +43,8 @@ pub struct Retry {
 }
 
 impl Dispatch {
-    pub fn new(config: Arc<Config>) -> (Self, tokio::sync::mpsc::Sender<Task>) {
-        let (tx, rx) = tokio::sync::mpsc::channel::<Task>(1024);
+    pub fn new(config: Arc<Config>) -> (Self, tokio::sync::mpsc::Sender<InnerTask>) {
+        let (tx, rx) = tokio::sync::mpsc::channel::<InnerTask>(1024);
         let (canonical_tx, canonical_rx) = tokio::sync::mpsc::channel::<CanonicalizeTask>(1024);
         let client = Arc::from(Client::new());
         let clawers = HashMap::new();
@@ -91,9 +90,13 @@ impl Dispatch {
         'main_loop: while let Some(task) = self.rx.recv().await {
             let (tx, mut rx) =
                 tokio::sync::mpsc::channel::<(i32, Result<CanonicalizeResult, Error>)>(1024);
+            let (task, id_tx) = (task.task, task.id_tx);
             let subtasks = task.split()?;
 
             let tid = repo.insert_task(&task).await?.id;
+            
+            let _ = id_tx.send(tid); // 返回task id
+            
             let format_tid = format!("{:0>10}", tid);
 
             let cache_at = Arc::new(storage_root.join(CACHE_DIRNAME).join(&format_tid));
@@ -201,61 +204,4 @@ where
     }
 
     Err(last_error.unwrap_or(Error::MaxRetriesError("超出最大重试次数".into())))
-}
-
-#[cfg(test)]
-mod tests {
-    use serde_json::json;
-    use super::*;
-
-    #[tokio::test]
-    async fn test_crawler() {
-        let c = toml::from_str::<Config>(&std::fs::read_to_string("./config/config.toml").unwrap()).unwrap();
-        let c = Arc::new(c);
-        let (mut d, tx) = Dispatch::new(c.clone());
-        let repo = Arc::new(Repository::new(c.clone()).await.unwrap());
-
-        tokio::spawn(async move{
-            let r = d.run(repo).await;
-            println!("{:?}", r);
-        });
-
-        let task = Task {
-            images: vec![
-                "http://localhost/00000049/00001.webp".to_string(),
-                "http://localhost/00000048/00002.webp".to_string(),
-                "http://localhost/00000048/00002.webp".to_string(),
-                "http://localhost/00000048/00002.webp".to_string(),
-                "http://localhost/00000048/00001.webp".to_string(),
-                "http://localhost/00000049/00004.webp".to_string(),
-                "http://localhost/00000048/00002.webp".to_string(),
-                "http://localhost/00000048/00001.webp".to_string(),
-                "http://localhost/00000048/00002.webp".to_string(),
-                "http://localhost/00000048/00003.webp".to_string(),
-                "http://localhost/00000049/00001.webp".to_string(),
-                "http://localhost/00000048/00003.webp".to_string(),
-                "http://localhost/00000048/00004.webp".to_string(),
-                "http://localhost/00000048/00002.webp".to_string(),
-                "http://localhost/00000048/00001.webp".to_string(),
-                "http://localhost/00000049/00003.webp".to_string(),
-                "http://localhost/00000048/00003.webp".to_string(),
-                "http://localhost/00000048/00004.webp".to_string(),
-                "http://localhost/00000048/00001.webp".to_string(),
-                "http://localhost/00000048/00004.webp".to_string(),
-                "http://localhost/00000049/00002.webp".to_string(),
-                "http://localhost/00000049/00004.webp".to_string(),
-            ],
-            tags: vec![],
-            literatures: vec![],
-            headers: Default::default(),
-            source_site: "dell".to_string(),
-            extra: Some(json!({
-                "source_id": 12
-            })),
-        };
-
-        tx.send(task).await.unwrap();
-
-        tokio::time::sleep(Duration::from_secs(30)).await;
-    }
 }

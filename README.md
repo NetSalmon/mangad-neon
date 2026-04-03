@@ -65,7 +65,7 @@ CREATE TABLE METADATA
 (
     id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     page_count INTEGER NOT NULL,
-    upload     TIMESTAMP DEFAULT now()
+    upload     TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE LITERATURES
@@ -126,8 +126,8 @@ CREATE TABLE TASKS
     status        task_status DEFAULT 'processing',
     task          JSON                                  NOT NULL,
     ending_reason TEXT,
-    create_time   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    update_time   TIMESTAMP   DEFAULT CURRENT_TIMESTAMP NOT NULL
+    create_time   TIMESTAMPTZ   DEFAULT now() NOT NULL,
+    update_time   TIMESTAMPTZ   DEFAULT now() NOT NULL
 );
 
 
@@ -146,4 +146,31 @@ CREATE TRIGGER trg_auto_modify_update_time
     ON TASKS
     FOR EACH ROW
 EXECUTE FUNCTION fn_auto_modify_update_time();
+
+CREATE TABLE TOKENS
+(
+    id uuid PRIMARY KEY ,
+    hash TEXT NOT NULL ,
+    remark TEXT ,
+    description TEXT ,
+    create_time TIMESTAMPTZ DEFAULT now() NOT NULL ,
+    revoke_time TIMESTAMPTZ ,
+    expire_time TIMESTAMPTZ DEFAULT now() + interval '30day' ,
+    is_revoked BOOLEAN DEFAULT false NOT NULL
+);
+
+CREATE OR REPLACE FUNCTION fn_auto_modify_revoke_time()
+    RETURNS TRIGGER
+AS $$
+BEGIN
+    IF NEW.is_revoked = true AND OLD.is_revoked = false THEN
+        NEW.revoke_time = now();
+    END IF;
+    RETURN NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_auto_modify_revoke_time
+    BEFORE UPDATE ON TOKENS
+    FOR EACH ROW EXECUTE FUNCTION fn_auto_modify_revoke_time();
 ```

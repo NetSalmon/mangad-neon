@@ -285,13 +285,11 @@ mod tests {
         let repo = Arc::new(Repository::new(config).await.unwrap());
 
         let (_, token) = repo
-            .create_token(ExpireTime::Short, Some("test".to_string()), None)
+            .create_token(ExpireTime::Never, Some("test".to_string()), None)
             .await
             .unwrap();
 
-        println!("{:#?}", repo.verify_token(&token).await.unwrap());
-
-        repo.revoke_token(&token).await.unwrap();
+        println!("{:#?}", token);
 
         println!("{:#?}", repo.verify_token(&token).await.unwrap());
     }

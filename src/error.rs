@@ -1,8 +1,9 @@
 use crate::core::entities::dao::ResponseBody;
 use crate::core::entities::inner::{CanonicalizeTask, InnerTask};
-use axum::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::{Json, http};
+use http::header::ToStrError;
 use sea_orm::DbErr;
 use std::convert::Infallible;
 use tokio::sync::AcquireError;
@@ -53,7 +54,9 @@ pub enum Error {
     #[error("uuid error {0}")]
     UuidError(#[from] uuid::Error),
     #[error("invalid format")]
-    InvalidTokenFormat,
+    InvalidTokenFormatError,
+    #[error("header value to string token")]
+    HeaderValueToStringError(#[from] ToStrError),
 }
 
 impl IntoResponse for Error {
@@ -79,7 +82,8 @@ impl IntoResponse for Error {
             | Error::SemaphoreCloseError(_)
             | Error::TokenHashError(_)
             | Error::UuidError(_)
-            | Error::InvalidTokenFormat
+            | Error::InvalidTokenFormatError
+            | Error::HeaderValueToStringError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

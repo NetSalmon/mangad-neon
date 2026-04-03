@@ -46,7 +46,7 @@ pub fn get_uuid(token: &str) -> Result<Uuid, Error> {
     let uuid_part = parts
         .get(0)
         .and_then(|s| s.strip_prefix("mangad_"))
-        .ok_or(Error::InvalidTokenFormat)?;
+        .ok_or(Error::InvalidTokenFormatError)?;
 
     Ok(Uuid::from_str(uuid_part)?)
 }

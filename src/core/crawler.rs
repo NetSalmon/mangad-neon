@@ -1,6 +1,6 @@
 use crate::core::entities::config::Config;
 use crate::core::entities::dao::crawler::SubTask;
-use crate::core::entities::inner::{CanonicalizeResult, CanonicalizeTask, InnerTask};
+use crate::core::entities::inner::{CanonicalizeTask, InnerTask};
 use crate::core::entities::orm::sea_orm_active_enums::TaskStatus;
 use crate::core::image::Canonicalization;
 use crate::core::repository::Repository;
@@ -80,8 +80,7 @@ impl Dispatch {
     pub async fn run(&mut self, repo: Arc<Repository>) -> Result<(), Error> {
         let storage_root = self.storage_root.clone();
         'main_loop: while let Some(task) = self.rx.recv().await {
-            let (tx, mut rx) =
-                tokio::sync::mpsc::channel::<(i32, Result<CanonicalizeResult, Error>)>(1024);
+            let (tx, mut rx) = tokio::sync::mpsc::channel::<(i32, Result<PathBuf, Error>)>(1024);
             let (task, id_tx) = (task.task, task.id_tx);
             let Ok(subtasks) = task.split() else {
                 eprintln!("failed to split subtasks");
@@ -127,7 +126,7 @@ impl Dispatch {
                     .take(self.max_retries);
 
                 tokio::spawn(async move {
-                    let res: Result<CanonicalizeResult, Error> = async {
+                    let res: Result<PathBuf, Error> = async {
                         let buffer = tokio_retry::Retry::spawn(strategy, || {
                             println!("testing");
                             let crawler = clone_crawler.clone();
@@ -154,7 +153,7 @@ impl Dispatch {
 
                         clone_canonical_tx.send(t).await?;
 
-                        Ok(rx.await?)
+                        rx.await?
                     }
                     .await;
 

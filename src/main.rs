@@ -14,11 +14,14 @@ async fn main() -> Result<(), Error> {
 
     let config_path = std::env::var("MANGAD_CONFIG_PATH").unwrap_or(CONFIG_PATH.to_string());
 
+    println!(
+        "▼ MangaD Neon ▲ \napplication ver: {}",
+        env!("CARGO_PKG_VERSION")
+    );
+
     let content = &std::fs::read_to_string(config_path)?;
 
     let config = toml::from_str::<Config>(content)?;
-
-    println!("CONFIG:\n{:#?}", config);
 
     Ok(service(Arc::new(config)).await?)
 }

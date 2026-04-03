@@ -42,6 +42,12 @@ pub struct CrawlerImageConfig {
 pub struct ServiceConfig {
     pub net: ServiceNetConfig,
     pub image: ImageConfig,
+    #[serde(default = "default_auth")]
+    pub enable_auth: bool,
+}
+
+fn default_auth() -> bool {
+    false
 }
 
 #[derive(Serialize, Deserialize, Debug)]

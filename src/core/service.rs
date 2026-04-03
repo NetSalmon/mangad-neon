@@ -6,12 +6,13 @@ use crate::Error;
 use crate::core::crawler::Dispatch;
 use crate::core::entities::inner::InnerTask;
 use crate::core::repository::Repository;
-use axum::middleware::{from_fn, from_fn_with_state};
+use axum::middleware::from_fn_with_state;
 use axum::routing::{get, post};
 use std::sync::Arc;
 
 pub struct AppState {
     pub config: Arc<Config>,
+    pub repo: Arc<Repository>,
     pub crawler_tx: Arc<tokio::sync::mpsc::Sender<InnerTask>>,
 }
 
@@ -19,13 +20,14 @@ pub async fn service(config: Arc<Config>) -> Result<(), Error> {
     let (mut dispatch, tx) = Dispatch::new(config.clone());
     let repo = Arc::new(Repository::new(config.clone()).await?);
 
-    tokio::spawn(async move {
-        let _ = dispatch.run(repo).await;
-    });
-
     let state = Arc::new(AppState {
         config: config.clone(),
+        repo: repo.clone(),
         crawler_tx: Arc::new(tx),
+    });
+
+    tokio::spawn(async move {
+        let _ = dispatch.run(repo).await;
     });
 
     let addr = tokio::net::TcpListener::bind(&config.service.net.host).await?;

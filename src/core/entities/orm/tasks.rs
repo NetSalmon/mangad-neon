@@ -2,13 +2,14 @@
 
 use super::sea_orm_active_enums::TaskStatus;
 use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "tasks")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub status: Option<TaskStatus>,
+    pub status: TaskStatus,
     pub task: Json,
     #[sea_orm(column_type = "Text", nullable)]
     pub ending_reason: Option<String>,

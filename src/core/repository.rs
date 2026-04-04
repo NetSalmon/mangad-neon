@@ -10,8 +10,8 @@ use crate::error::Error;
 use chrono::Utc;
 use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, DatabaseTransaction, QueryFilter, TransactionTrait,
-    sea_query,
+    sea_query, ActiveModelTrait, ColumnTrait, Condition, DatabaseTransaction
+    , QueryFilter, TransactionTrait,
 };
 use sea_orm::{DatabaseConnection, EntityTrait, Set};
 use std::sync::Arc;
@@ -56,7 +56,7 @@ impl Repository {
     ) -> Result<tasks::Model, Error> {
         let new = tasks::ActiveModel {
             id: Set(id),
-            status: Set(Some(task_status)),
+            status: Set(task_status),
             ..Default::default()
         };
 
@@ -73,7 +73,7 @@ impl Repository {
     ) -> Result<tasks::Model, Error> {
         let new = tasks::ActiveModel {
             id: Set(id),
-            status: Set(Some(task_status)),
+            status: Set(task_status),
             ending_reason: Set(Some(reason.to_string())),
             ..Default::default()
         };
@@ -219,10 +219,13 @@ impl Repository {
         if model.is_revoked {
             return Ok(false);
         }
-        let Some(expire_time) = model.expire_time else {
-            return Ok(true);
+
+        let is_expired = match model.expire_time {
+            None => false,
+            Some(t) => Utc::now() > t,
         };
-        if Utc::now() > expire_time.with_timezone(&Utc) {
+
+        if is_expired {
             return Ok(false);
         }
 
@@ -273,24 +276,32 @@ impl Repository {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::core::repository::*;
-    #[tokio::test]
-    async fn t() {
-        let config = Arc::new(
-            toml::from_str(&std::fs::read_to_string("./config/config.toml").unwrap()).unwrap(),
-        );
+impl Repository {
+    pub async fn insert_metadata(
+        &self,
+        new: metadata::ActiveModel,
+    ) -> Result<metadata::Model, Error> {
+        Ok(metadata::Entity::insert(new)
+            .exec_with_returning(&self.db)
+            .await?)
+    }
 
-        let repo = Arc::new(Repository::new(config).await.unwrap());
+    pub async fn update_metadata(
+        &self,
+        new: metadata::ActiveModel,
+    ) -> Result<metadata::Model, Error> {
+        Ok(metadata::Entity::update(new).exec(&self.db).await?)
+    }
 
-        let (_, token) = repo
-            .create_token(ExpireTime::Never, Some("test".to_string()), None)
-            .await
-            .unwrap();
+    pub async fn select_metadata(&self, id: i32) -> Result<Option<metadata::Model>, Error> {
+        Ok(metadata::Entity::find_by_id(id).one(&self.db).await?)
+    }
 
-        println!("{:#?}", token);
-
-        println!("{:#?}", repo.verify_token(&token).await.unwrap());
+    pub async fn delete_metadata(&self, id: i32) -> Result<Option<metadata::Model>, Error> {
+        Ok(metadata::Entity::delete_by_id(id)
+            .exec_with_returning(&self.db)
+            .await?
+            .into_iter()
+            .nth(0))
     }
 }

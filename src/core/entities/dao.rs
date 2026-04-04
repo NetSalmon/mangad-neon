@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
+pub mod active_dao;
 pub mod crawler;
 
 #[derive(Serialize, Debug)]

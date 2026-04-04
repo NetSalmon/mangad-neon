@@ -11,10 +11,10 @@ CREATE TYPE tag_type AS ENUM (
 CREATE TABLE TAGS
 (
     id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    type         tag_type NOT NULL,
-    label        TEXT     NOT NULL,
+    type         tag_type          NOT NULL,
+    label        TEXT              NOT NULL,
     canonical_id INTEGER,
-    ref_count    INTEGER DEFAULT 0,
+    ref_count    INTEGER DEFAULT 0 NOT NULL,
     FOREIGN KEY (canonical_id) REFERENCES TAGS (id) ON DELETE CASCADE
 );
 
@@ -55,15 +55,15 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_tags_validate_canonical
     BEFORE INSERT OR UPDATE
-        ON TAGS
-        FOR EACH ROW
-        EXECUTE FUNCTION fn_ensure_tag_canonical_integrity();
+                         ON TAGS
+                         FOR EACH ROW
+                         EXECUTE FUNCTION fn_ensure_tag_canonical_integrity();
 
 CREATE TABLE METADATA
 (
     id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    page_count INTEGER NOT NULL,
-    upload     TIMESTAMPTZ DEFAULT now()
+    page_count INTEGER                   NOT NULL,
+    upload     TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
 CREATE TABLE LITERATURES
@@ -121,13 +121,12 @@ CREATE TYPE task_status AS ENUM (
 CREATE TABLE TASKS
 (
     id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    status        task_status DEFAULT 'processing',
-    task          JSON                      NOT NULL,
+    status        task_status DEFAULT 'processing' NOT NULL,
+    task          JSON                             NOT NULL,
     ending_reason TEXT,
-    create_time   TIMESTAMPTZ DEFAULT now() NOT NULL,
-    update_time   TIMESTAMPTZ DEFAULT now() NOT NULL
+    create_time   TIMESTAMPTZ DEFAULT now()        NOT NULL,
+    update_time   TIMESTAMPTZ DEFAULT now()        NOT NULL
 );
-
 
 CREATE OR REPLACE FUNCTION fn_auto_modify_update_time()
     RETURNS TRIGGER

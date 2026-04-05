@@ -1,14 +1,13 @@
 use crate::core::entities::dao::active::TagType;
 use crate::core::entities::orm::{literatures, tags};
+use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use sea_orm::prelude::DateTimeWithTimeZone;
 use serde::Serialize;
 
 pub mod active;
 pub mod crawler;
-
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ApiResp<T> {
@@ -27,19 +26,35 @@ impl<T: Serialize> IntoResponse for ApiResp<T> {
 
 impl<T> ApiResp<T> {
     pub fn success(result: T) -> ApiResp<T> {
-        ApiResp { ok: true, status_code: Some(StatusCode::OK), result }
+        ApiResp {
+            ok: true,
+            status_code: Some(StatusCode::OK),
+            result,
+        }
     }
 
     pub fn failed(result: T) -> ApiResp<T> {
-        ApiResp { ok: false, status_code: None, result }
+        ApiResp {
+            ok: false,
+            status_code: None,
+            result,
+        }
     }
 
     pub fn success_with(code: StatusCode, result: T) -> ApiResp<T> {
-        ApiResp { ok: false, status_code: Some(code), result }
+        ApiResp {
+            ok: false,
+            status_code: Some(code),
+            result,
+        }
     }
 
     pub fn failed_with(code: StatusCode, result: T) -> ApiResp<T> {
-        ApiResp { ok: false, status_code: Some(code), result }
+        ApiResp {
+            ok: false,
+            status_code: Some(code),
+            result,
+        }
     }
 }
 

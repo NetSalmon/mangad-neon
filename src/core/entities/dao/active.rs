@@ -105,9 +105,9 @@ impl From<TaskStatus> for sea_orm_active_enums::TaskStatus {
 impl From<sea_orm_active_enums::TaskStatus> for TaskStatus {
     fn from(t: sea_orm_active_enums::TaskStatus) -> Self {
         match t {
-            sea_orm_active_enums::TaskStatus::Success    => TaskStatus::Success   ,
+            sea_orm_active_enums::TaskStatus::Success => TaskStatus::Success,
             sea_orm_active_enums::TaskStatus::Processing => TaskStatus::Processing,
-            sea_orm_active_enums::TaskStatus::Failure    => TaskStatus::Failure   ,
+            sea_orm_active_enums::TaskStatus::Failure => TaskStatus::Failure,
         }
     }
 }
@@ -121,7 +121,7 @@ impl From<sea_orm_active_enums::TagType> for TagType {
             sea_orm_active_enums::TagType::Serial => TagType::Serial,
             sea_orm_active_enums::TagType::Chara => TagType::Chara,
             sea_orm_active_enums::TagType::Lang => TagType::Lang,
-            sea_orm_active_enums::TagType::Group => TagType::Group, 
+            sea_orm_active_enums::TagType::Group => TagType::Group,
         }
     }
 }

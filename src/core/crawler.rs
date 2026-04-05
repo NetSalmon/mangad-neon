@@ -127,7 +127,8 @@ impl Dispatch {
 
                 tokio::spawn(async move {
                     let res: Result<PathBuf, Error> = async {
-                        let format = if let Some(t) = PathBuf::from(subtask.url.path()).extension() {
+                        let format = if let Some(t) = PathBuf::from(subtask.url.path()).extension()
+                        {
                             if let Some(ext) = t.to_str() {
                                 Some(ext.to_string())
                             } else {

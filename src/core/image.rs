@@ -31,7 +31,7 @@ impl Canonicalization {
                             } else {
                                 image::load_from_memory(&can.buffer)?.to_rgba8()
                             };
-                            
+
                             let encoder =
                                 webp::Encoder::from_rgba(&image, image.width(), image.height());
                             let mem = encoder.encode(can.quality);

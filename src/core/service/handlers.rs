@@ -14,14 +14,14 @@ pub mod basic {
 pub mod business {
     use crate::core::entities::dao::active::IntoActiveModel;
     use crate::core::entities::dao::crawler::Task;
-    use crate::core::entities::dao::{active, FullData, InlineLiterature, InlineTag};
+    use crate::core::entities::dao::{FullData, InlineLiterature, InlineTag, active};
     use crate::core::entities::inner::InnerTask;
     use crate::core::entities::orm::{literatures, metadata, tag_metadata, tags};
-    use crate::core::service::handlers::ApiResult;
     use crate::core::service::AppState;
+    use crate::core::service::handlers::ApiResult;
     use crate::error::Error;
-    use axum::extract::{Path, State};
     use axum::Json;
+    use axum::extract::{Path, State};
     use paste::paste;
     use sea_orm::entity::prelude::*;
     use sea_orm::{Set, TransactionTrait};
@@ -52,10 +52,10 @@ pub mod business {
                 ) -> ApiResult<$path::Model> {
                     let mut active = data.into_active_model();
                     // 假设 id 字段也需要手动 Set，或者已经在 data 里了
-                    // active.id = Set(id); 
-                    
+                    // active.id = Set(id);
+
                     $(active.$f = Set($f);)*
-                    
+
                     let result = $path::Entity::update(active)
                         .exec(&state.repo.db)
                         .await?;
@@ -85,7 +85,10 @@ pub mod business {
         State(state): State<Arc<AppState>>,
         Path(id): Path<i32>,
     ) -> ApiResult<Option<tags::Model>> {
-        Ok(tags::Entity::find_by_id(id).one(&state.repo.db).await?.into())
+        Ok(tags::Entity::find_by_id(id)
+            .one(&state.repo.db)
+            .await?
+            .into())
     }
 
     pub async fn select_full_data_by_id(
@@ -93,12 +96,12 @@ pub mod business {
         Path(id): Path<i32>,
     ) -> ApiResult<FullData> {
         let tx = state.repo.db.begin().await?;
-        
+
         let m = metadata::Entity::find_by_id(id)
             .one(&tx)
             .await?
             .ok_or(Error::NotFound)?;
-        
+
         let mt = tag_metadata::Entity::find()
             .filter(tag_metadata::Column::MetadataId.eq(id))
             .all(&tx)
@@ -114,7 +117,7 @@ pub mod business {
             .into_iter()
             .map(|t| t.into())
             .collect::<Vec<InlineTag>>();
-        
+
         let literatures = literatures::Entity::find()
             .filter(literatures::Column::MetadataId.eq(id))
             .all(&tx)
@@ -122,9 +125,9 @@ pub mod business {
             .into_iter()
             .map(|t| t.into())
             .collect::<Vec<InlineLiterature>>();
-        
+
         tx.commit().await?;
-        
+
         let fin = FullData {
             id: m.id,
             page_count: m.page_count,
@@ -132,7 +135,7 @@ pub mod business {
             literatures,
             tags,
         };
-        
+
         Ok(fin.into())
     }
 }

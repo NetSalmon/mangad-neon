@@ -8,6 +8,7 @@ pub type CanonicalizeResult = Result<PathBuf, Error>;
 
 pub struct CanonicalizeTask {
     pub buffer: Arc<Vec<u8>>,
+    pub format: Option<String>,
     pub base_path: Arc<PathBuf>,
     pub pid: i32,
     pub quality: f32,

@@ -23,5 +23,9 @@ async fn main() -> Result<(), Error> {
 
     let config = toml::from_str::<Config>(content)?;
 
+    if config.service.enable_auth {
+        println!("Need HTTPS");
+    }
+
     Ok(service(Arc::new(config)).await?)
 }

@@ -1,4 +1,3 @@
-use crate::core::entities::dao::ResponseBody;
 use crate::core::entities::inner::{CanonicalizeTask, InnerTask};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -8,6 +7,7 @@ use sea_orm::DbErr;
 use std::convert::Infallible;
 use tokio::sync::AcquireError;
 use tokio::task::JoinError;
+use crate::core::entities::dao::ApiResp;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -57,6 +57,8 @@ pub enum Error {
     InvalidTokenFormatError,
     #[error("header value to string token")]
     HeaderValueToStringError(#[from] ToStrError),
+    #[error("not found error")]
+    NotFound,
 }
 
 impl IntoResponse for Error {
@@ -85,10 +87,12 @@ impl IntoResponse for Error {
             | Error::InvalidTokenFormatError
             | Error::HeaderValueToStringError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::NotFound => StatusCode::NOT_FOUND,
         };
 
-        let body = ResponseBody {
+        let body = ApiResp {
             ok: false,
+            status_code: Some(code),
             result: self.to_string(),
         };
 

@@ -1700,6 +1700,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "image",
+ "paste",
  "rand 0.10.0",
  "reqwest",
  "sea-orm",

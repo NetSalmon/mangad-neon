@@ -127,6 +127,16 @@ impl Dispatch {
 
                 tokio::spawn(async move {
                     let res: Result<PathBuf, Error> = async {
+                        let format = if let Some(t) = PathBuf::from(subtask.url.path()).extension() {
+                            if let Some(ext) = t.to_str() {
+                                Some(ext.to_string())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
                         let buffer = tokio_retry::Retry::spawn(strategy, || {
                             println!("testing");
                             let crawler = clone_crawler.clone();
@@ -145,6 +155,7 @@ impl Dispatch {
 
                         let t = CanonicalizeTask {
                             buffer: Arc::new(buffer),
+                            format,
                             base_path,
                             pid: index,
                             quality: config.crawler.image.quality,

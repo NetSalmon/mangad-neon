@@ -17,7 +17,7 @@ use sea_orm::{DatabaseConnection, EntityTrait, Set};
 use std::sync::Arc;
 
 pub struct Repository {
-    db: DatabaseConnection,
+    pub(crate) db: DatabaseConnection,
 }
 
 impl Repository {
@@ -215,6 +215,8 @@ impl Repository {
         let Some(model) = tokens::Entity::find_by_id(uuid).one(&self.db).await? else {
             return Ok(false);
         };
+
+        println!("{:#?}", model);
 
         if model.is_revoked {
             return Ok(false);

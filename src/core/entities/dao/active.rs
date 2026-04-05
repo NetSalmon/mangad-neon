@@ -20,7 +20,6 @@ macro_rules! set {
                     $(
                         $field: set!(@field self, $field $(, $enum_path)?),
                     )*
-                    ..Default::default() // 建议加上，防止 ActiveModel 有其他未定义字段
                 }
             }
         }
@@ -36,7 +35,7 @@ macro_rules! set {
 
     (@field $self:ident, $field:ident, $enum_path:path) => {
         if let Some(v) = $self.$field {
-            sea_orm::Set(v.to())
+            sea_orm::Set(v.into())
         } else {
             sea_orm::ActiveValue::NotSet
         }
@@ -93,18 +92,43 @@ pub enum TaskStatus {
     Failure,
 }
 
-impl TaskStatus {
-    fn to(&self) -> sea_orm_active_enums::TaskStatus {
-        match self {
+impl From<TaskStatus> for sea_orm_active_enums::TaskStatus {
+    fn from(task_status: TaskStatus) -> Self {
+        match task_status {
             TaskStatus::Success => sea_orm_active_enums::TaskStatus::Success,
             TaskStatus::Processing => sea_orm_active_enums::TaskStatus::Processing,
             TaskStatus::Failure => sea_orm_active_enums::TaskStatus::Failure,
         }
     }
 }
-impl TagType {
-    fn to(&self) -> sea_orm_active_enums::TagType {
-        match self {
+
+impl From<sea_orm_active_enums::TaskStatus> for TaskStatus {
+    fn from(t: sea_orm_active_enums::TaskStatus) -> Self {
+        match t {
+            sea_orm_active_enums::TaskStatus::Success    => TaskStatus::Success   ,
+            sea_orm_active_enums::TaskStatus::Processing => TaskStatus::Processing,
+            sea_orm_active_enums::TaskStatus::Failure    => TaskStatus::Failure   ,
+        }
+    }
+}
+
+impl From<sea_orm_active_enums::TagType> for TagType {
+    fn from(t: sea_orm_active_enums::TagType) -> Self {
+        match t {
+            sea_orm_active_enums::TagType::Genre => TagType::Genre,
+            sea_orm_active_enums::TagType::Artist => TagType::Artist,
+            sea_orm_active_enums::TagType::Origin => TagType::Origin,
+            sea_orm_active_enums::TagType::Serial => TagType::Serial,
+            sea_orm_active_enums::TagType::Chara => TagType::Chara,
+            sea_orm_active_enums::TagType::Lang => TagType::Lang,
+            sea_orm_active_enums::TagType::Group => TagType::Group, 
+        }
+    }
+}
+
+impl From<TagType> for sea_orm_active_enums::TagType {
+    fn from(tag_type: TagType) -> Self {
+        match tag_type {
             TagType::Genre => sea_orm_active_enums::TagType::Genre,
             TagType::Artist => sea_orm_active_enums::TagType::Artist,
             TagType::Origin => sea_orm_active_enums::TagType::Origin,

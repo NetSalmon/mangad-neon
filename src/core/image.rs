@@ -22,15 +22,15 @@ impl Canonicalization {
                     let _permit = semaphore.acquire_owned().await;
                     let encoded_result =
                         tokio::task::spawn_blocking(move || -> Result<Vec<u8>, Error> {
-                            let image = if let Some(format) = can.format {
-                                if let Some(f) = image::ImageFormat::from_extension(&format) {
-                                    image::load_from_memory_with_format(&can.buffer, f)?.to_rgba8()
-                                } else {
-                                    image::load_from_memory(&can.buffer)?.to_rgba8()
-                                }
-                            } else {
-                                image::load_from_memory(&can.buffer)?.to_rgba8()
+                            let format = can.format.as_ref()
+                                .and_then(|f| image::ImageFormat::from_extension(f));
+
+                            let dynamic_image = match format {
+                                Some(f) => image::load_from_memory_with_format(&can.buffer, f)?,
+                                None => image::load_from_memory(&can.buffer)?,
                             };
+
+                            let image = dynamic_image.to_rgba8();
 
                             let encoder =
                                 webp::Encoder::from_rgba(&image, image.width(), image.height());

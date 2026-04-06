@@ -32,7 +32,6 @@ else
   psql -h "$PG_HOST" -U "$PG_USER" -d postgres -c "CREATE DATABASE ${PG_DB};"
 fi
 
-# 执行迁移
 echo "${PG_DB} migrating..."
 psql -h "$PG_HOST" -U "$PG_USER" -d "$PG_DB" -f ./migrate.sql
 echo "all done"

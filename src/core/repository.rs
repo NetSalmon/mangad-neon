@@ -277,33 +277,3 @@ impl Repository {
         Ok(())
     }
 }
-
-impl Repository {
-    pub async fn insert_metadata(
-        &self,
-        new: metadata::ActiveModel,
-    ) -> Result<metadata::Model, Error> {
-        Ok(metadata::Entity::insert(new)
-            .exec_with_returning(&self.db)
-            .await?)
-    }
-
-    pub async fn update_metadata(
-        &self,
-        new: metadata::ActiveModel,
-    ) -> Result<metadata::Model, Error> {
-        Ok(metadata::Entity::update(new).exec(&self.db).await?)
-    }
-
-    pub async fn select_metadata(&self, id: i32) -> Result<Option<metadata::Model>, Error> {
-        Ok(metadata::Entity::find_by_id(id).one(&self.db).await?)
-    }
-
-    pub async fn delete_metadata(&self, id: i32) -> Result<Option<metadata::Model>, Error> {
-        Ok(metadata::Entity::delete_by_id(id)
-            .exec_with_returning(&self.db)
-            .await?
-            .into_iter()
-            .nth(0))
-    }
-}

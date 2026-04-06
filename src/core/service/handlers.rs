@@ -16,7 +16,7 @@ pub mod business {
     use crate::core::entities::dao::crawler::Task;
     use crate::core::entities::dao::{FullData, InlineLiterature, InlineTag, active};
     use crate::core::entities::inner::InnerTask;
-    use crate::core::entities::orm::{literatures, metadata, tag_metadata, tags};
+    use crate::core::entities::orm::{literatures, metadata, tag_metadata, tags, tasks, tokens};
     use crate::core::service::AppState;
     use crate::core::service::handlers::ApiResult;
     use crate::error::Error;
@@ -51,8 +51,6 @@ pub mod business {
                     Json(data): Json<active::[<$name:camel>]>,
                 ) -> ApiResult<$path::Model> {
                     let mut active = data.into_active_model();
-                    // 假设 id 字段也需要手动 Set，或者已经在 data 里了
-                    // active.id = Set(id);
 
                     $(active.$f = Set($f);)*
 
@@ -138,4 +136,60 @@ pub mod business {
 
         Ok(fin.into())
     }
+
+    macro_rules! select {
+        ($entity:ident - $($key:ident : $t:ident),*$(,)?) => {
+            paste! {
+                pub async fn [<select_ $entity>](
+                    State(state): State<Arc<AppState>>,
+                    $(Path($key): Path<$t>,)*
+                ) -> ApiResult<$entity::Model> {
+                    let result = $entity::Entity::find()
+                        $(
+                            .filter($entity::Column::[<$key:camel>].eq($key))
+                        )*
+                        .one(&state.repo.db)
+                        .await?
+                        .ok_or(Error::NotFound)?;
+                    Ok(result.into())
+                }
+            }
+        };
+    }
+
+    select!(tags - id:i32);
+    select!(tag_metadata - tag_id:i32, metadata_id:i32);
+    select!(metadata - id:i32);
+    select!(tasks - id:i32);
+    select!(literatures - id:i32);
+    select!(tokens - id:Uuid);
+
+    macro_rules! delete {
+        ($entity:ident - $($key:ident : $t:ident),*$(,)?) => {
+            paste! {
+                pub async fn [<delete_ $entity>](
+                    State(state): State<Arc<AppState>>,
+                    $(Path($key): Path<$t>,)*
+                ) -> ApiResult<$entity::Model> {
+                    let active = $entity::ActiveModel {
+                        $($key: Set($key),)*
+                        ..Default::default()
+                    };
+
+                    let r = $entity::Entity::delete(active)
+                        .exec_with_returning(&state.repo.db)
+                        .await?
+                        .ok_or(Error::NotFound)?;
+
+                    Ok(r.into())
+                }
+            }
+        };
+    }
+
+    delete!(tags - id:i32);
+    delete!(tag_metadata - tag_id:i32, metadata_id:i32);
+    delete!(metadata - id:i32);
+    delete!(tasks - id:i32);
+    delete!(literatures - id:i32);
 }

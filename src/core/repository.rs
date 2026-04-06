@@ -276,4 +276,42 @@ impl Repository {
 
         Ok(())
     }
+
+    pub async fn select_literatures_and_tags(
+        &self,
+        id: i32,
+    ) -> Result<(Vec<literatures::Model>, Vec<tags::Model>), Error> {
+        let tx = self.db.begin().await?;
+        let tag_id = tag_metadata::Entity::find()
+            .filter(tag_metadata::Column::MetadataId.eq(id))
+            .all(&tx)
+            .await?
+            .into_iter()
+            .map(|m| m.tag_id)
+            .collect::<Vec<i32>>();
+
+        let tags = tags::Entity::find()
+            .filter(tags::Column::Id.is_in(tag_id))
+            .all(&tx)
+            .await?;
+
+        let literatures = literatures::Entity::find()
+            .filter(literatures::Column::MetadataId.eq(id))
+            .all(&tx)
+            .await?;
+
+        Ok((literatures, tags))
+    }
+
+    pub async fn select_metadata_id_by_tag_id(&self, id: i32) -> Result<Vec<i32>, Error> {
+        let id = tag_metadata::Entity::find()
+            .filter(tag_metadata::Column::TagId.eq(id))
+            .all(&self.db)
+            .await?
+            .iter()
+            .map(|m| m.metadata_id)
+            .collect::<Vec<i32>>();
+
+        Ok(id)
+    }
 }

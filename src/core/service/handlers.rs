@@ -14,14 +14,15 @@ pub mod basic {
 pub mod business {
     use crate::core::entities::dao::active::IntoActiveModel;
     use crate::core::entities::dao::crawler::Task;
-    use crate::core::entities::dao::{FullData, InlineLiterature, InlineTag, active};
+    use crate::core::entities::dao::{active, Document, FullData, InlineLiterature, InlineTag, SearchQuery};
     use crate::core::entities::inner::InnerTask;
     use crate::core::entities::orm::{literatures, metadata, tag_metadata, tags, tasks, tokens};
-    use crate::core::service::AppState;
     use crate::core::service::handlers::ApiResult;
+    use crate::core::service::AppState;
     use crate::error::Error;
+    use axum::extract::{Path, Query, State};
     use axum::Json;
-    use axum::extract::{Path, State};
+    use meilisearch_sdk::search::SearchResult;
     use paste::paste;
     use sea_orm::entity::prelude::*;
     use sea_orm::{Set, TransactionTrait};
@@ -192,4 +193,39 @@ pub mod business {
     delete!(metadata - id:i32);
     delete!(tasks - id:i32);
     delete!(literatures - id:i32);
+
+    pub async fn searching(
+        State(state): State<Arc<AppState>>,
+        Query(query): Query<SearchQuery>
+    ) -> ApiResult<Vec<SearchResult<Document>>> {
+        let r = match (query.query, query.filter) {
+            (Some(q), Some(f)) => {
+                state.index.search()
+                    .with_query(&q)
+                    .with_filter(&f)
+                    .execute::<Document>()
+                    .await?
+                    .hits
+            }
+            (Some(q), None) => {
+                state.index.search()
+                    .with_query(&q)
+                    .execute::<Document>()
+                    .await?
+                    .hits
+            }
+            (None, Some(f)) => {
+                state.index.search()
+                    .with_filter(&f)
+                    .execute::<Document>()
+                    .await?
+                    .hits
+            }
+            (None, None) => {
+                return Err(Error::BadRequestError("need query".to_string()));
+            }
+        };
+
+        Ok(r.into())
+    }
 }

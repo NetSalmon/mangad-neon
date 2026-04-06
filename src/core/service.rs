@@ -2,32 +2,47 @@ pub mod handlers;
 pub mod middleware;
 
 use super::entities::config::Config;
-use crate::Error;
 use crate::core::crawler::Dispatch;
 use crate::core::entities::inner::InnerTask;
 use crate::core::repository::Repository;
+use crate::core::search;
+use crate::core::sync::sync;
+use crate::Error;
 use axum::middleware::from_fn_with_state;
 use axum::routing::{get, patch, post};
+use meilisearch_sdk::indexes::Index;
 use std::sync::Arc;
+use tokio_retry::Action;
 
 pub struct AppState {
     pub config: Arc<Config>,
     pub repo: Arc<Repository>,
+    pub index: Arc<Index>,
     pub crawler_tx: Arc<tokio::sync::mpsc::Sender<InnerTask>>,
 }
 
 pub async fn service(config: Arc<Config>) -> Result<(), Error> {
     let (mut dispatch, tx) = Dispatch::new(config.clone());
     let repo = Arc::new(Repository::new(config.clone()).await?);
+    let index = Arc::new(search::search().await?);
 
     let state = Arc::new(AppState {
         config: config.clone(),
+        index: index.clone(),
         repo: repo.clone(),
         crawler_tx: Arc::new(tx),
     });
 
+    let clone_repo = repo.clone();
+
     tokio::spawn(async move {
-        let _ = dispatch.run(repo).await;
+        let err = dispatch.run(clone_repo).await;
+        println!("dispatch:\n{:#?}", err);
+    });
+
+    tokio::spawn(async move {
+        let err = sync(repo.clone(), index).await;
+        println!("sync:\n{:#?}", err);
     });
 
     let addr = tokio::net::TcpListener::bind(&config.service.net.host).await?;
@@ -64,8 +79,9 @@ pub async fn service(config: Arc<Config>) -> Result<(), Error> {
         )
         .route(
             "/manga/{id}",
-            get(handlers::business::select_full_data_by_id), // 只通过task新增
+            get(handlers::business::select_full_data_by_id),
         )
+        .route("/search", get(handlers::business::searching))
         .layer(from_fn_with_state(state.clone(), middleware::authorization))
         .with_state(state.clone());
 

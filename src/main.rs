@@ -1,3 +1,5 @@
+extern crate alloc;
+
 use crate::core::entities::config::Config;
 use crate::core::service::service;
 use crate::error::Error;

@@ -59,6 +59,14 @@ pub enum Error {
     HeaderValueToStringError(#[from] ToStrError),
     #[error("not found error")]
     NotFound,
+    #[error("sqlx core error {0}")]
+    SqlxCoreError(#[from] sqlx_core::error::Error),
+    #[error("meili search error {0}")]
+    MeiliSearchError(#[from] meilisearch_sdk::errors::Error),
+    #[error("{0}")]
+    CustomError(String),
+    #[error("bad request error {0}")]
+    BadRequestError(String),
 }
 
 impl IntoResponse for Error {
@@ -86,8 +94,12 @@ impl IntoResponse for Error {
             | Error::UuidError(_)
             | Error::InvalidTokenFormatError
             | Error::HeaderValueToStringError(_)
+            | Error::SqlxCoreError(_)
+            | Error::CustomError(_)
+            | Error::MeiliSearchError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::NotFound => StatusCode::NOT_FOUND,
+            Error::BadRequestError(_) => StatusCode::BAD_REQUEST,
         };
 
         let body = ApiResp {

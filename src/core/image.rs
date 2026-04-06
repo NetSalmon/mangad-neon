@@ -22,7 +22,9 @@ impl Canonicalization {
                     let _permit = semaphore.acquire_owned().await;
                     let encoded_result =
                         tokio::task::spawn_blocking(move || -> Result<Vec<u8>, Error> {
-                            let format = can.format.as_ref()
+                            let format = can
+                                .format
+                                .as_ref()
                                 .and_then(|f| image::ImageFormat::from_extension(f));
 
                             let dynamic_image = match format {

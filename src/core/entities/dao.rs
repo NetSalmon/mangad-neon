@@ -1,10 +1,10 @@
 use crate::core::entities::dao::active::TagType;
-use crate::core::entities::orm::{literatures, tags};
+use crate::core::entities::orm::{literatures, sea_orm_active_enums, tags};
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use sea_orm::prelude::DateTimeWithTimeZone;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub mod active;
 pub mod crawler;
@@ -100,6 +100,7 @@ pub struct FullData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InlineLiterature {
+    pub id: i32,
     pub title: Option<String>,
     pub description: Option<String>,
     pub lang: String,
@@ -107,6 +108,7 @@ pub struct InlineLiterature {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InlineTag {
+    pub id: i32,
     pub r#type: TagType,
     pub label: String,
     pub ref_count: i32,
@@ -115,6 +117,7 @@ pub struct InlineTag {
 impl From<literatures::Model> for InlineLiterature {
     fn from(l: literatures::Model) -> Self {
         InlineLiterature {
+            id: l.id,
             title: l.title,
             description: l.description,
             lang: l.lang,
@@ -125,9 +128,71 @@ impl From<literatures::Model> for InlineLiterature {
 impl From<tags::Model> for InlineTag {
     fn from(t: tags::Model) -> InlineTag {
         InlineTag {
+            id: t.id,
             r#type: t.r#type.into(),
             label: t.label,
             ref_count: t.ref_count,
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Document {
+    id: i32,
+    title: Option<String>,
+    description: Option<String>,
+    lang: String,
+    genres: Vec<String>,
+    artists: Vec<String>,
+    origins: Vec<String>,
+    serials: Vec<String>,
+    characters: Vec<String>,
+    groups: Vec<String>,
+    languages: Vec<String>,
+}
+
+impl From<(literatures::Model, Vec<tags::Model>)> for Document {
+    fn from((l, tags): (literatures::Model, Vec<tags::Model>)) -> Self {
+        let mut genres = vec![];
+        let mut artists = vec![];
+        let mut origins = vec![];
+        let mut serials = vec![];
+        let mut characters = vec![];
+        let mut groups = vec![];
+        let mut languages = vec![];
+
+        for tag in tags {
+            let list = match tag.r#type {
+                sea_orm_active_enums::TagType::Genre => &mut genres,
+                sea_orm_active_enums::TagType::Artist => &mut artists,
+                sea_orm_active_enums::TagType::Origin => &mut origins,
+                sea_orm_active_enums::TagType::Serial => &mut serials,
+                sea_orm_active_enums::TagType::Chara => &mut characters,
+                sea_orm_active_enums::TagType::Lang => &mut languages,
+                sea_orm_active_enums::TagType::Group => &mut groups,
+            };
+
+            list.push(tag.label.to_string());
+        }
+
+        Self {
+            id: l.id,
+            title: l.title,
+            description: l.description,
+            lang: l.lang,
+            genres,
+            artists,
+            origins,
+            serials,
+            characters,
+            groups,
+            languages,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SearchQuery {
+    pub query: Option<String>,
+    pub filter: Option<String>,
 }

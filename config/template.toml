@@ -22,3 +22,6 @@ retry = { max_retries = 2, delay = 2, max_delay = 30 }
 [crawler.image]
 quality = 100.0
 semaphore = 8
+
+[search]
+host = "http://127.0.0.1:7700"

@@ -6,6 +6,7 @@ pub struct Config {
     pub database: DatabaseConfig,
     pub service: ServiceConfig,
     pub crawler: CrawlerConfig,
+    pub search: SearchConfig,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -89,4 +90,10 @@ fn thumbnail_default_size() -> u32 {
 }
 fn thumbnail_default_enabled() -> bool {
     true
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SearchConfig {
+    pub host: String,
+    pub api_key: Option<String>,
 }

@@ -14,14 +14,16 @@ pub mod basic {
 pub mod business {
     use crate::core::entities::dao::active::IntoActiveModel;
     use crate::core::entities::dao::crawler::Task;
-    use crate::core::entities::dao::{active, Document, FullData, InlineLiterature, InlineTag, SearchQuery};
+    use crate::core::entities::dao::{
+        Document, FullData, InlineLiterature, InlineTag, SearchQuery, active,
+    };
     use crate::core::entities::inner::InnerTask;
     use crate::core::entities::orm::{literatures, metadata, tag_metadata, tags, tasks, tokens};
-    use crate::core::service::handlers::ApiResult;
     use crate::core::service::AppState;
+    use crate::core::service::handlers::ApiResult;
     use crate::error::Error;
-    use axum::extract::{Path, Query, State};
     use axum::Json;
+    use axum::extract::{Path, Query, State};
     use meilisearch_sdk::search::SearchResult;
     use paste::paste;
     use sea_orm::entity::prelude::*;
@@ -196,11 +198,13 @@ pub mod business {
 
     pub async fn searching(
         State(state): State<Arc<AppState>>,
-        Query(query): Query<SearchQuery>
+        Query(query): Query<SearchQuery>,
     ) -> ApiResult<Vec<SearchResult<Document>>> {
         let r = match (query.query, query.filter) {
             (Some(q), Some(f)) => {
-                state.index.search()
+                state
+                    .index
+                    .search()
                     .with_query(&q)
                     .with_filter(&f)
                     .execute::<Document>()
@@ -208,14 +212,18 @@ pub mod business {
                     .hits
             }
             (Some(q), None) => {
-                state.index.search()
+                state
+                    .index
+                    .search()
                     .with_query(&q)
                     .execute::<Document>()
                     .await?
                     .hits
             }
             (None, Some(f)) => {
-                state.index.search()
+                state
+                    .index
+                    .search()
                     .with_filter(&f)
                     .execute::<Document>()
                     .await?
@@ -227,5 +235,36 @@ pub mod business {
         };
 
         Ok(r.into())
+    }
+}
+
+pub mod resource {
+    use crate::core::service::AppState;
+    use crate::error::Error;
+    use axum::body::Body;
+    use axum::extract::{Path, State};
+    use axum::response::Response;
+    use std::sync::Arc;
+    use tokio::fs::File;
+
+    pub async fn images(
+        State(state): State<Arc<AppState>>,
+        Path((mid, index)): Path<(i32, i32)>,
+    ) -> Result<Response<Body>, Error> {
+        let dir = format!("{:0>10}", mid);
+        let file = format!("{:0>10}.webp", index);
+
+        let path = state.config.crawler.storage.join(dir).join(file);
+
+        println!("{}", path.display());
+
+        let f = File::open(path).await?;
+        let stream = tokio_util::io::ReaderStream::new(f);
+        let body = Body::from_stream(stream);
+        let response = Response::builder()
+            .header(axum::http::header::CONTENT_TYPE, "image/webp")
+            .body(body)?;
+
+        Ok(response)
     }
 }

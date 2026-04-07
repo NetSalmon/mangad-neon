@@ -1,9 +1,32 @@
+use crate::core::entities::config::Config;
 use crate::core::entities::dao::Document;
 use crate::core::repository::Repository;
 use crate::error::Error;
+use meilisearch_sdk::client::Client;
 use meilisearch_sdk::indexes::Index;
 use sea_orm::sqlx::postgres::PgListener;
 use std::sync::Arc;
+
+pub async fn index(config: Arc<Config>) -> Result<Index, Error> {
+    let client = Client::new(&config.search.host, config.search.api_key.clone())?;
+    let index = client.index("mangas");
+    index
+        .set_filterable_attributes([
+            "genres",
+            "artists",
+            "groups",
+            "languages",
+            "characters",
+            "serials",
+            "origins",
+        ])
+        .await?;
+    index
+        .set_searchable_attributes(["description", "title"])
+        .await?;
+
+    Ok(index)
+}
 
 pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), Error> {
     let inner_pool = repo.db.get_postgres_connection_pool();
@@ -50,8 +73,9 @@ pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), Error>
                 }
             }
             Ok(())
-        }.await;
-        
+        }
+        .await;
+
         if let Err(e) = res {
             return Err(e); // 以后再做进一步处理
         }

@@ -17,7 +17,7 @@ use sea_orm::{DatabaseConnection, EntityTrait, Set};
 use std::sync::Arc;
 
 pub struct Repository {
-    pub(crate) db: DatabaseConnection,
+    pub db: DatabaseConnection,
 }
 
 impl Repository {

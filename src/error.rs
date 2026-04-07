@@ -67,6 +67,8 @@ pub enum Error {
     CustomError(String),
     #[error("bad request error {0}")]
     BadRequestError(String),
+    #[error("http error {0}")]
+    HttpError(#[from] http::Error),
 }
 
 impl IntoResponse for Error {
@@ -96,6 +98,7 @@ impl IntoResponse for Error {
             | Error::HeaderValueToStringError(_)
             | Error::SqlxCoreError(_)
             | Error::CustomError(_)
+            | Error::HttpError(_)
             | Error::MeiliSearchError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::NotFound => StatusCode::NOT_FOUND,

@@ -1,10 +1,10 @@
-use crate::core::entities::dao::ApiResp;
-use crate::error::Error;
+use mangad_neon::core::entities::dao::ApiResp;
+use mangad_neon::error::Error;
 
 pub type ApiResult<T> = Result<ApiResp<T>, Error>;
 
 pub mod basic {
-    use crate::core::service::handlers::ApiResult;
+    use crate::service::handlers::ApiResult;
 
     pub async fn health() -> ApiResult<String> {
         Ok("service is running".into())
@@ -12,18 +12,20 @@ pub mod basic {
 }
 
 pub mod business {
-    use crate::core::entities::dao::active::IntoActiveModel;
-    use crate::core::entities::dao::crawler::Task;
-    use crate::core::entities::dao::{
-        Document, FullData, InlineLiterature, InlineTag, SearchQuery, active,
-    };
-    use crate::core::entities::inner::InnerTask;
-    use crate::core::entities::orm::{literatures, metadata, tag_metadata, tags, tasks, tokens};
-    use crate::core::service::AppState;
-    use crate::core::service::handlers::ApiResult;
-    use crate::error::Error;
+    use crate::service::AppState;
+    use crate::service::handlers::ApiResult;
     use axum::Json;
     use axum::extract::{Path, Query, State};
+    use mangad_neon::core::entities::dao::active::IntoActiveModel;
+    use mangad_neon::core::entities::dao::crawler::Task;
+    use mangad_neon::core::entities::dao::{
+        Document, FullData, InlineLiterature, InlineTag, SearchQuery, active,
+    };
+    use mangad_neon::core::entities::inner::InnerTask;
+    use mangad_neon::core::entities::orm::{
+        literatures, metadata, tag_metadata, tags, tasks, tokens,
+    };
+    use mangad_neon::error::Error;
     use meilisearch_sdk::search::SearchResult;
     use paste::paste;
     use sea_orm::entity::prelude::*;
@@ -69,7 +71,7 @@ pub mod business {
     macro_rules! patch_many {
         ($( $name:ident - [ $($f:ident : $t:ty),* $(,)? ] ),* $(,)?) => {
             $(
-                patch!($name, crate::core::entities::orm::$name, [ $($f : $t),* ]);
+                patch!($name, mangad_neon::core::entities::orm::$name, [ $($f : $t),* ]);
             )*
         }
     }
@@ -239,11 +241,11 @@ pub mod business {
 }
 
 pub mod resource {
-    use crate::core::service::AppState;
-    use crate::error::Error;
+    use crate::service::AppState;
     use axum::body::Body;
     use axum::extract::{Path, State};
     use axum::response::Response;
+    use mangad_neon::error::Error;
     use std::sync::Arc;
     use tokio::fs::File;
 

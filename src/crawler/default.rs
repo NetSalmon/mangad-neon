@@ -1,8 +1,8 @@
-use crate::core::crawler::Crawler;
-use crate::core::entities::dao::crawler::SubTask;
-use crate::error::Error;
+use crate::crawler::Crawler;
 use async_trait::async_trait;
 use image::EncodableLayout;
+use mangad_neon::core::entities::dao::crawler::SubTask;
+use mangad_neon::error::Error;
 use reqwest::Client;
 use std::sync::Arc;
 

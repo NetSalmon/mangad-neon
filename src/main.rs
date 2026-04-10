@@ -1,33 +1,25 @@
 extern crate alloc;
 
-use crate::core::entities::config::Config;
-use crate::core::service::service;
-use crate::error::Error;
-use std::sync::Arc;
+use mangad_neon::core::init::init_config;
+use mangad_neon::error::Error;
+use service::service;
 
-pub mod core;
-pub mod error;
-
-pub static CONFIG_PATH: &str = "./config/config.toml";
+pub mod crawler;
+pub mod searching;
+pub mod service;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    dotenvy::dotenv().ok();
-
-    let config_path = std::env::var("MANGAD_CONFIG_PATH").unwrap_or(CONFIG_PATH.to_string());
-
     println!(
         "▼ MangaD Neon ▲ \napplication ver: {}",
         env!("CARGO_PKG_VERSION")
     );
 
-    let content = &std::fs::read_to_string(config_path)?;
-
-    let config = toml::from_str::<Config>(content)?;
+    let config = init_config()?;
 
     if config.service.enable_auth {
         println!("Need HTTPS");
     }
 
-    Ok(service(Arc::new(config)).await?)
+    Ok(service(config).await?)
 }

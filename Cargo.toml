@@ -6,6 +6,10 @@ authors = ["netsalmon@disroot.org"]
 license = "GPL-3"
 description = "A comic scraping and background service tool"
 
+[[bin]]
+name = "mangad-cli"
+path = "src/bin/cli.rs"
+
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -30,3 +34,4 @@ meilisearch-sdk = "0.32.0"
 sqlx-core = "0.8.6"
 tower-http = {version = "0.6.5", features = ["fs", "trace"]}
 tokio-util = "0.7.18"
+clap = { version = "4.6.0", features = ["derive", "env"] }

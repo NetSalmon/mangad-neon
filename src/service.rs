@@ -1,15 +1,15 @@
 pub mod handlers;
 pub mod middleware;
 
-use super::entities::config::Config;
-use crate::Error;
-use crate::core::crawler::Dispatch;
-use crate::core::entities::inner::InnerTask;
-use crate::core::repository::Repository;
-use crate::core::searching;
-use crate::core::searching::sync;
+use crate::crawler::Dispatch;
+use crate::searching;
+use crate::searching::sync;
 use axum::middleware::from_fn_with_state;
 use axum::routing::{get, patch, post};
+use mangad_neon::core::config::Config;
+use mangad_neon::core::entities::inner::InnerTask;
+use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
+use mangad_neon::error::Error;
 use meilisearch_sdk::indexes::Index;
 use std::sync::Arc;
 
@@ -22,7 +22,7 @@ pub struct AppState {
 
 pub async fn service(config: Arc<Config>) -> Result<(), Error> {
     let (mut dispatch, tx) = Dispatch::new(config.clone());
-    let repo = Arc::new(Repository::new(config.clone()).await?);
+    let repo = Arc::new(Repository::new(&config.to_database_url()).await?);
     let index = Arc::new(searching::index(config.clone()).await?);
 
     let state = Arc::new(AppState {

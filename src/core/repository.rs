@@ -1,4 +1,4 @@
-use crate::core::entities::config::Config;
+use crate::core::config::Config;
 use crate::core::entities::dao::crawler::{Literature, Tag, Task};
 use crate::core::entities::inner::ExpireTime;
 use crate::core::entities::orm::prelude::Tasks;
@@ -8,10 +8,11 @@ use crate::core::token;
 use crate::core::token::TokenTrait;
 use crate::error::Error;
 use chrono::Utc;
+use paste::paste;
 use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, DatabaseTransaction, QueryFilter, TransactionTrait,
-    sea_query,
+    ActiveModelTrait, ColumnTrait, Condition, DatabaseTransaction, PaginatorTrait, QueryFilter,
+    TransactionTrait, sea_query,
 };
 use sea_orm::{DatabaseConnection, EntityTrait, Set};
 use std::sync::Arc;
@@ -20,20 +21,26 @@ pub struct Repository {
     pub db: DatabaseConnection,
 }
 
-impl Repository {
-    pub async fn new(config: Arc<Config>) -> Result<Self, Error> {
-        let url = format!(
+pub trait IntoDatabaseUrl {
+    fn to_database_url(&self) -> String;
+}
+
+impl IntoDatabaseUrl for Arc<Config> {
+    fn to_database_url(&self) -> String {
+        format!(
             "postgres://{}:{}@{}:{}/{}",
-            config.database.user,
-            config.database.password,
-            config.database.host,
-            config.database.port,
-            config.database.database,
-        );
+            self.database.user,
+            self.database.password,
+            self.database.host,
+            self.database.port,
+            self.database.database,
+        )
+    }
+}
 
-        println!("Connecting to {}", url);
-
-        let db = sea_orm::Database::connect(&url).await?;
+impl Repository {
+    pub async fn new(url: &str) -> Result<Self, Error> {
+        let db = sea_orm::Database::connect(url).await?;
 
         Ok(Self { db })
     }
@@ -216,8 +223,6 @@ impl Repository {
             return Ok(false);
         };
 
-        println!("{:#?}", model);
-
         if model.is_revoked {
             return Ok(false);
         }
@@ -314,4 +319,31 @@ impl Repository {
 
         Ok(id)
     }
+}
+macro_rules! list {
+    ($path:path, $name:ident) => {
+        paste! {
+            pub async fn [<list_ $name>] (
+                &self,
+                page_size: u64,
+                page_number: u64,
+            ) -> Result<Vec<$path::Model>, Error> {
+                let models = $path::Entity::find()
+                    .paginate(&self.db, page_size)
+                    .fetch_page(page_number)
+                    .await?;
+
+                Ok(models)
+            }
+        }
+    };
+}
+
+impl Repository {
+    list!(tags, tags);
+    list!(literatures, literatures);
+    list!(tag_metadata, tag_metadata);
+    list!(tokens, tokens);
+    list!(metadata, metadata);
+    list!(tasks, tasks);
 }

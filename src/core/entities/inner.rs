@@ -1,6 +1,7 @@
 use crate::core::entities::dao::crawler::Task;
 use crate::error::Error;
 use sea_orm::prelude::DateTimeWithTimeZone;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -20,12 +21,14 @@ pub struct InnerTask {
     pub id_tx: tokio::sync::oneshot::Sender<i32>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ExpireTime {
-    Short,
-    Medium,
-    Long,
+    Short,    // 20 mins
+    Medium,   // 7 dats
+    Long,     // 30 days
+    Extended, // 90 days
     Permanent,
-    Never,
 }
 
 impl ExpireTime {
@@ -34,8 +37,8 @@ impl ExpireTime {
             ExpireTime::Short => Some(chrono::Duration::minutes(20)),
             ExpireTime::Medium => Some(chrono::Duration::days(7)),
             ExpireTime::Long => Some(chrono::Duration::days(30)),
-            ExpireTime::Permanent => Some(chrono::Duration::days(90)),
-            ExpireTime::Never => None,
+            ExpireTime::Extended => Some(chrono::Duration::days(90)),
+            ExpireTime::Permanent => None,
         }
     }
 

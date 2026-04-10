@@ -1,7 +1,7 @@
-use crate::core::entities::config::Config;
-use crate::core::entities::dao::Document;
-use crate::core::repository::Repository;
-use crate::error::Error;
+use mangad_neon::core::config::Config;
+use mangad_neon::core::entities::dao::Document;
+use mangad_neon::core::repository::Repository;
+use mangad_neon::error::Error;
 use meilisearch_sdk::client::Client;
 use meilisearch_sdk::indexes::Index;
 use sea_orm::sqlx::postgres::PgListener;

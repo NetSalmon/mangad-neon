@@ -26,7 +26,7 @@ pub async fn thumbnail(
             let storage_path = config.crawler.storage.join(dir);
             tokio::fs::create_dir_all(&thumbnail_path).await?;
 
-            for index in 1..=task.page_count + 1 {
+            for index in 1..=task.page_count {
                 let file = format!("{:0>10}.webp", index);
 
                 let thumbnail_path = thumbnail_path.join(&file);

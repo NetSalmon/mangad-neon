@@ -17,6 +17,11 @@ pub async fn authorization(
     request: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
+    if !state.config.read().await.service.enable_auth {
+        tracing::info!("authorization disabled");
+        return Ok(next.run(request).await);
+    }
+
     let token = request.headers().get("Authorization");
     let Some(auth) = token else {
         return Err(StatusCode::UNAUTHORIZED);

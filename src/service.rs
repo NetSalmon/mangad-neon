@@ -3,6 +3,7 @@ pub mod middleware;
 
 use crate::crawler::Dispatch;
 use crate::searching::sync;
+use crate::thumbnail::ThumbnailTaskSingle;
 use crate::{searching, thumbnail};
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::{get, patch, post};
@@ -17,7 +18,6 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::thumbnail::ThumbnailTaskSingle;
 
 pub struct AppState {
     pub config: Arc<RwLock<Config>>,
@@ -40,7 +40,7 @@ pub async fn service(config: Config, path: PathBuf) -> Result<(), Error> {
     let (sub_task_tx, sub_task_rx) = tokio::sync::broadcast::channel::<SubTaskResult>(1024);
     let (thumbnail_tx, thumbnail_rx) = tokio::sync::mpsc::channel(1024);
     let (thumbnail_single_tx, thumbnail_single_rx) = tokio::sync::mpsc::channel(1024);
-    
+
     let repo = Arc::new(Repository::new(&wrapping_config.to_database_url()).await?);
     let index = Arc::new(searching::index(wrapping_config.clone()).await?);
 
@@ -63,7 +63,6 @@ pub async fn service(config: Config, path: PathBuf) -> Result<(), Error> {
 
     let clone_repo = repo.clone();
 
-
     let clone_config = wrapping_config.clone();
     tokio::spawn(async move {
         if let Err(err) = thumbnail::thumbnail(clone_config, thumbnail_rx).await {
@@ -77,7 +76,7 @@ pub async fn service(config: Config, path: PathBuf) -> Result<(), Error> {
             tracing::error!("Thumbnail encode error: {}", err);
         }
     });
-    
+
     tokio::spawn(async move {
         if let Err(err) = dispatch
             .run(clone_repo, task_tx, sub_task_tx, thumbnail_tx)
@@ -116,7 +115,7 @@ pub async fn service(config: Config, path: PathBuf) -> Result<(), Error> {
             get(handlers::resource::images),
         )
         .route(
-        "/mangas/{mid}/thumbnails/{index}",
+            "/mangas/{mid}/thumbnails/{index}",
             get(handlers::resource::thumbnails),
         );
 

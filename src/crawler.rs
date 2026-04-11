@@ -1,4 +1,5 @@
 use crate::canonicalize::Canonicalization;
+use crate::thumbnail::ThumbnailTask;
 use async_trait::async_trait;
 use default::DefaultCrawler;
 use mangad_neon::core::config::Config;
@@ -16,7 +17,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
 use tokio_retry::strategy::ExponentialBackoff;
-use crate::thumbnail::ThumbnailTask;
 
 mod default;
 
@@ -241,11 +241,13 @@ impl Dispatch {
                     continue 'main_loop;
                 }
             };
-            
-            let _ = thumbnail_tx.send(ThumbnailTask {
-                mid: id,
-                page_count,
-            }).await;
+
+            let _ = thumbnail_tx
+                .send(ThumbnailTask {
+                    mid: id,
+                    page_count,
+                })
+                .await;
 
             let format_mid = format!("{:0>10}", id);
             let storage_at = Arc::new(storage_root.join(&format_mid));

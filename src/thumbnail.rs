@@ -15,7 +15,6 @@ pub struct ThumbnailTaskSingle {
     pub index: i32,
 }
 
-
 pub async fn thumbnail(
     config: Arc<Config>,
     mut path_rx: tokio::sync::mpsc::Receiver<ThumbnailTask>,
@@ -27,7 +26,7 @@ pub async fn thumbnail(
             let storage_path = config.crawler.storage.join(dir);
             tokio::fs::create_dir_all(&thumbnail_path).await?;
 
-            for index in 1..=task.page_count+1 {
+            for index in 1..=task.page_count + 1 {
                 let file = format!("{:0>10}.webp", index);
 
                 let thumbnail_path = thumbnail_path.join(&file);
@@ -35,7 +34,12 @@ pub async fn thumbnail(
                 let buf = tokio::fs::read(storage_path.join(file)).await?;
                 let buf = encode_thumbnail(&config, buf)?;
 
-                tracing::debug!("thumbnail encoded mid={}, index={}, path={}", task.mid, index,thumbnail_path.display());
+                tracing::debug!(
+                    "thumbnail encoded mid={}, index={}, path={}",
+                    task.mid,
+                    index,
+                    thumbnail_path.display()
+                );
 
                 tokio::fs::write(thumbnail_path, buf).await?;
             }
@@ -70,13 +74,18 @@ pub async fn thumbnail_single(
             let buf = tokio::fs::read(storage_path.join(file)).await?;
             let buf = encode_thumbnail(&config, buf)?;
 
-            tracing::debug!("thumbnail encoded mid={}, index={}, path={}", task.mid, task.index,thumbnail_path.display());
+            tracing::debug!(
+                "thumbnail encoded mid={}, index={}, path={}",
+                task.mid,
+                task.index,
+                thumbnail_path.display()
+            );
 
             tokio::fs::write(thumbnail_path, buf).await?;
 
             Ok(())
         }
-            .await;
+        .await;
 
         if let Err(e) = resp {
             tracing::error!("{:?}", e);
@@ -92,18 +101,13 @@ fn encode_thumbnail(config: &Arc<Config>, buf: Vec<u8>) -> Result<Vec<u8>, Error
 
         drop(buf);
 
-        let thumb = image
-            .thumbnail(config.thumbnail.width, config.thumbnail.height);
+        let thumb = image.thumbnail(config.thumbnail.width, config.thumbnail.height);
 
         let width = thumb.width();
         let height = thumb.height();
         let thumb = thumb.into_rgba8();
 
-        let coder = webp::Encoder::from_rgba(
-            &thumb,
-            width,
-            height,
-        );
+        let coder = webp::Encoder::from_rgba(&thumb, width, height);
         let buf = coder.encode(config.thumbnail.quality);
 
         drop(thumb);

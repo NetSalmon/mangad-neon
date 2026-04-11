@@ -10,9 +10,13 @@ pub fn init_config() -> Result<(PathBuf, Config), Error> {
     let config_path = std::env::var("MANGAD_CONFIG_PATH").unwrap_or(CONFIG_PATH.to_string());
     let path = PathBuf::from(config_path);
 
-    let content = &std::fs::read_to_string(&path)?;
-
-    let config = toml::from_str::<Config>(content)?;
+    let config = if path.exists() {
+        let content = &std::fs::read_to_string(&path)?;
+        toml::from_str::<Config>(content)?
+    } else {
+        tracing::warn!("Config file not found at {:?}, using defaults/env vars", path);
+        Config::default()
+    };
 
     Ok((path, config))
 }

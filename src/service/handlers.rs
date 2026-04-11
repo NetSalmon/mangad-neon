@@ -270,14 +270,14 @@ pub mod business {
 
 pub mod resource {
     use crate::service::AppState;
+    use crate::thumbnail;
+    use crate::thumbnail::ThumbnailTaskSingle;
     use axum::body::Body;
     use axum::extract::{Path, State};
     use axum::response::Response;
     use mangad_neon::error::Error;
     use std::sync::Arc;
     use tokio::fs::File;
-    use crate::thumbnail;
-    use crate::thumbnail::ThumbnailTaskSingle;
 
     pub async fn images(
         State(state): State<Arc<AppState>>,
@@ -306,7 +306,7 @@ pub mod resource {
 
         Ok(response)
     }
-    
+
     pub async fn thumbnails(
         State(state): State<Arc<AppState>>,
         Path((mid, index)): Path<(i32, i32)>,
@@ -326,7 +326,9 @@ pub mod resource {
 
         println!("{}", path.display());
 
-        let f = if let Ok(f) = File::open(path).await { f } else {
+        let f = if let Ok(f) = File::open(path).await {
+            f
+        } else {
             let path = state
                 .config
                 .read()
@@ -335,14 +337,14 @@ pub mod resource {
                 .storage
                 .join(dir)
                 .join(file);
-            let _ = state.thumbnail_single_tx.send(ThumbnailTaskSingle {
-                mid,
-                index,
-            }).await;
-            
+            let _ = state
+                .thumbnail_single_tx
+                .send(ThumbnailTaskSingle { mid, index })
+                .await;
+
             File::open(path).await?
         };
-        
+
         let stream = tokio_util::io::ReaderStream::new(f);
         let body = Body::from_stream(stream);
         let response = Response::builder()

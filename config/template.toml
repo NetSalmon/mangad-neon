@@ -1,33 +1,66 @@
-[service.image.thumbnail]
-enabled = true
-width = 200
-height = 200
-quality = 75.0
+# MangaD-Neon Configuration Template
+# Most of these values can be overridden by environment variables (see .env.example)
 
 [database]
-host = "localhost"
+# Environment: MANGAD_DATABASE_HOST
+host = "127.0.0.1"
+# Environment: MANGAD_DATABASE_PORT
 port = 5432
-database = "manga_neon"
+# Environment: MANGAD_DATABASE_NAME
+database = "mangad"
+# Environment: MANGAD_DATABASE_USER
 user = "postgres"
-password = "ENTER YOU PASSWD IN HERE"
+# Environment: MANGAD_DATABASE_PASSWD
+password = ""
 
 [service.net]
+# Environment: MANGAD_SERVICE_HOST
 host = "127.0.0.1:6789"
 
+[service]
+# Environment: MANGAD_ENABLE_AUTH
+enable_auth = false
+
 [crawler]
-semaphore = 15
-storage = "ENTER YOU STORAGE DIRECTORY"
-retry = { max_retries = 2, delay = 2, max_delay = 30 }
+# Environment: MANGAD_CRAWLER_SEMAPHORE
+semaphore = 10
+# Environment: MANGAD_CRAWLER_STORAGE
+storage = "./storage"
+
+[crawler.retry]
+# Environment: MANGAD_RETRY_MAX_RETRIES
+max_retries = 5
+# Environment: MANGAD_RETRY_DELAY
+delay = 2
+# Environment: MANGAD_RETRY_MAX_DELAY
+max_delay = 30
 
 [crawler.image]
-quality = 100.0
-semaphore = 8
+# Environment: MANGAD_CRAWLER_IMAGE_SEMAPHORE
+semaphore = 5
+# Environment: MANGAD_CRAWLER_IMAGE_QUALITY
+quality = 80.0
 
 [search]
+# Environment: MANGAD_SEARCH_HOST
 host = "http://127.0.0.1:7700"
+# Environment: MANGAD_SEARCH_API_KEY
+api_key = ""
+
+[thumbnail]
+# Environment: MANGAD_THUMBNAIL_ENABLED
+enabled = true
+# Environment: MANGAD_THUMBNAIL_WIDTH
+width = 200
+# Environment: MANGAD_THUMBNAIL_HEIGHT
+height = 200
+# Environment: MANGAD_THUMBNAIL_QUALITY
+quality = 75.0
 
 [log]
+# Environment: MANGAD_LOG_LEVEL
 level = "info"
 
 [permissions]
+# Environment: MANGAD_ALLOW_REMOTE_VISIT
 allow_remote_visit = false

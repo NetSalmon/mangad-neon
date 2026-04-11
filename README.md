@@ -5,7 +5,7 @@ graph TD
         Main --> Service["服务初始化 (service.rs)"]
         Service --> State["全局状态 (AppState)"]
         Service --> Router["路由与处理器 (handlers.rs)"]
-        Router --> Middleware["授权中间件 (Auth Middleware)"]
+        Router --> Middleware["授权与日志中间件 (Middleware)"]
     end
 
     subgraph "异步抓取系统 (Crawler System)"
@@ -14,6 +14,13 @@ graph TD
         TaskQueue --> Downloader["下载器 (Crawler Trait)"]
         Downloader -- "图像流" --> Canonical["图像规范化 (Canonicalization)"]
         Canonical --> Storage["本地存储 (FileSystem)"]
+    end
+
+    subgraph "缩略图生成系统 (Thumbnail System)"
+        Dispatch -- "ThumbnailTask (mpsc)" --> Thumbnail["批量缩略图 (thumbnail)"]
+        Router -- "ThumbnailTaskSingle (mpsc)" --> ThumbnailSingle["单图缩略图 (thumbnail_single)"]
+        Thumbnail --> Storage
+        ThumbnailSingle --> Storage
     end
 
     subgraph "搜索与同步系统 (Search System)"
@@ -34,9 +41,10 @@ graph TD
     Router --> Repo
     Dispatch --> Repo
     TaskQueue -- "更新任务状态" --> Repo
+    Sync --> Repo
 ```
 
-### 监控与运维 (Monit$$oring & Ops)
+### 监控与运维 (Monitoring & Ops)
 - [ ] **日志审计**: 增加关键操作的日志记录与异常告警。
 
 ### 前端展示 (Frontend)

@@ -1,10 +1,11 @@
 pub mod handlers;
 pub mod middleware;
 
+use std::net::SocketAddr;
 use crate::crawler::Dispatch;
 use crate::searching;
 use crate::searching::sync;
-use axum::middleware::from_fn_with_state;
+use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::{get, patch, post};
 use mangad_neon::core::config::Config;
 use mangad_neon::core::entities::inner::InnerTask;
@@ -12,12 +13,18 @@ use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
 use mangad_neon::error::Error;
 use meilisearch_sdk::indexes::Index;
 use std::sync::Arc;
+use mangad_neon::core::entities::dao::SubTaskResult;
+use mangad_neon::core::entities::orm::tasks;
 
 pub struct AppState {
     pub config: Arc<Config>,
     pub repo: Arc<Repository>,
     pub index: Arc<Index>,
     pub crawler_tx: Arc<tokio::sync::mpsc::Sender<InnerTask>>,
+    pub task_tx: tokio::sync::broadcast::Sender<tasks::Model>,
+    pub _task_rx: tokio::sync::broadcast::Receiver<tasks::Model>,
+    pub sub_task_tx: tokio::sync::broadcast::Sender<SubTaskResult>,
+    pub _sub_task_rx: tokio::sync::broadcast::Receiver<SubTaskResult>,
 }
 
 pub async fn service(config: Arc<Config>) -> Result<(), Error> {
@@ -29,17 +36,25 @@ pub async fn service(config: Arc<Config>) -> Result<(), Error> {
 
     tracing::info!("Database and Search index connected");
 
+    let (task_tx, task_rx) = tokio::sync::broadcast::channel::<tasks::Model>(1024);
+    let (sub_task_tx, sub_task_rx) = tokio::sync::broadcast::channel::<SubTaskResult>(1024);
+
     let state = Arc::new(AppState {
         config: config.clone(),
         index: index.clone(),
         repo: repo.clone(),
         crawler_tx: Arc::new(tx),
+        task_tx: task_tx.clone(),
+        _task_rx: task_rx,
+        sub_task_tx: sub_task_tx.clone(),
+        _sub_task_rx: sub_task_rx,
     });
 
     let clone_repo = repo.clone();
 
+
     tokio::spawn(async move {
-        if let Err(err) = dispatch.run(clone_repo).await {
+        if let Err(err) = dispatch.run(clone_repo, task_tx, sub_task_tx).await {
             tracing::error!("Crawler dispatch error: {:?}", err);
         }
     });
@@ -54,7 +69,8 @@ pub async fn service(config: Arc<Config>) -> Result<(), Error> {
 
     let public_routes = axum::Router::new()
         .route("/health", get(handlers::basic::health))
-        .route("/tasks", get(handlers::business::select_tasks))
+        .route("/tasks/{id}", get(handlers::business::select_tasks))
+        .route("/tasks", get(handlers::business::task_notice))
         .route(
             "/literatures/{id}",
             get(handlers::business::select_literatures),
@@ -95,9 +111,13 @@ pub async fn service(config: Arc<Config>) -> Result<(), Error> {
 
     let router = public_routes
         .merge(private_routes)
+        .layer(from_fn(middleware::log))
         .with_state(state.clone());
 
-    let app = axum::serve(addr, router).await?;
+    let app = axum::serve(
+        addr,
+        router.into_make_service_with_connect_info::<SocketAddr>()
+    ).await?;
 
     Ok(app)
 }

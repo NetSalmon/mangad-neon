@@ -12,6 +12,7 @@ pub mod basic {
 }
 
 pub mod business {
+    use std::convert::Infallible;
     use crate::service::AppState;
     use crate::service::handlers::ApiResult;
     use axum::Json;
@@ -31,18 +32,21 @@ pub mod business {
     use sea_orm::entity::prelude::*;
     use sea_orm::{Set, TransactionTrait};
     use std::sync::Arc;
+    use axum::response::Sse;
+    use axum::response::sse::Event;
     use tokio::sync::oneshot;
+    use tokio_stream::Stream;
 
     pub async fn add_tasks(
         State(state): State<Arc<AppState>>,
         Json(task): Json<Task>,
     ) -> ApiResult<i32> {
-        let (tx, rx) = oneshot::channel();
-        let inner_task = InnerTask { task, id_tx: tx };
+        let (tid_tx, tid_rx) = oneshot::channel();
+        let inner_task = InnerTask { task, tid_tx };
 
         state.crawler_tx.send(inner_task).await?;
 
-        let id = rx.await?;
+        let id = tid_rx.await?;
 
         Ok(id.into())
     }
@@ -237,6 +241,30 @@ pub mod business {
         };
 
         Ok(r.into())
+    }
+
+    pub async fn task_notice(
+        State(state): State<Arc<AppState>>,
+    ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Error> {
+        let mut task_rx = state.task_tx.subscribe();
+        let mut sub_task_rx = state.sub_task_tx.subscribe();
+
+        let stream = async_stream::stream! {
+            loop{
+                let (field, data) = tokio::select! {
+                    Ok(data) = task_rx.recv() => {("task", serde_json::to_string(&data).unwrap_or(String::new()))}
+                    Ok(data) = sub_task_rx.recv() => {("subtask", serde_json::to_string(&data).unwrap_or(String::new()))}
+                };
+                let event = Event::default().event(field).data(data);
+                yield Ok(event);
+            }
+        };
+
+        Ok(Sse::new(stream).keep_alive(
+            axum::response::sse::KeepAlive::new()
+                .interval(std::time::Duration::from_secs(15))
+                .text("keep-alive"),
+        ))
     }
 }
 

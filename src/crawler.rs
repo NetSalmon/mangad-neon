@@ -14,6 +14,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
 use tokio_retry::strategy::ExponentialBackoff;
+use mangad_neon::core::entities::dao::{SubTaskResult, SubTaskStatus};
+use mangad_neon::core::entities::orm::tasks;
 
 mod default;
 
@@ -77,12 +79,17 @@ impl Dispatch {
         (dispatch, tx)
     }
 
-    pub async fn run(&mut self, repo: Arc<Repository>) -> Result<(), Error> {
+    pub async fn run(
+        &mut self,
+        repo: Arc<Repository>,
+        task_tx: tokio::sync::broadcast::Sender<tasks::Model>,
+        sub_task_tx: tokio::sync::broadcast::Sender<SubTaskResult>,
+    ) -> Result<(), Error> {
         let storage_root = self.storage_root.clone();
         'main_loop: while let Some(task) = self.rx.recv().await {
             tracing::info!("Received new task: {}", task.task.title());
             let (tx, mut rx) = tokio::sync::mpsc::channel::<(i32, Result<PathBuf, Error>)>(1024);
-            let (task, _id_tx) = (task.task, task.id_tx);
+            let InnerTask{ task, tid_tx} = task;
             let Ok(subtasks) = task.split() else {
                 tracing::error!("Failed to split subtasks for task: {}", task.title());
                 continue 'main_loop;
@@ -94,6 +101,8 @@ impl Dispatch {
                 tracing::error!("Unable to insert task into database: {}", task.title());
                 continue 'main_loop;
             };
+
+            let _ = tid_tx.send(tid);
 
             tracing::info!("Task {} inserted with ID: {}", task.title(), tid);
 
@@ -180,15 +189,33 @@ impl Dispatch {
             drop(tx);
 
             while let Some((index, res)) = rx.recv().await {
+                let clone_sub_task_tx = sub_task_tx.clone();
                 match res {
                     Ok(_) => {
+                        let _ = clone_sub_task_tx.send(
+                            SubTaskResult {
+                                tid,
+                                index,
+                                status: SubTaskStatus::Ok,
+                            }
+                        );
+                        
                         tracing::debug!("Subtask {} completed successfully", index);
                     }
                     Err(err) => {
                         tracing::error!("Subtask {} failed, aborting task {}: {:?}", index, tid, err);
+                        let _ = clone_sub_task_tx.send(
+                            SubTaskResult {
+                                tid,
+                                index,
+                                status: SubTaskStatus::Err(err.to_string()),
+                            }
+                        );
+                        
                         let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
-                        repo.update_task_status_with_reason(tid, TaskStatus::Failure, err)
+                        let model = repo.update_task_status_with_reason(tid, TaskStatus::Failure, err)
                             .await?;
+                        let _ = task_tx.send(model);
                         continue 'main_loop;
                     }
                 }
@@ -200,8 +227,9 @@ impl Dispatch {
                 Err(err) => {
                     eprintln!("failed");
                     let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
-                    repo.update_task_status_with_reason(tid, TaskStatus::Failure, err)
+                    let model = repo.update_task_status_with_reason(tid, TaskStatus::Failure, err)
                         .await?;
+                    let _ = task_tx.send(model);
                     continue 'main_loop;
                 }
             };
@@ -212,11 +240,16 @@ impl Dispatch {
             if let Err(err) = tokio::fs::rename(&cache_at.as_ref(), &storage_at.as_ref()).await {
                 eprintln!("failed");
                 let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
-                repo.update_task_status_with_reason(tid, TaskStatus::Failure, Error::from(err))
+                let model = repo.update_task_status_with_reason(tid, TaskStatus::Failure, Error::from(err))
                     .await?;
+                let _ = task_tx.send(model);
                 continue 'main_loop;
             };
-            let _ = repo.update_task_status(tid, TaskStatus::Success).await;
+
+
+            if let Ok(model) = repo.update_task_status(tid, TaskStatus::Success).await {
+                let _ = task_tx.send(model);
+            };
         }
 
         Ok(())

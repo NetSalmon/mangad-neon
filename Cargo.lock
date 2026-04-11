@@ -779,6 +779,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "7.0.0-rc2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4a1e35a65fe0538a60167f0ada6e195ad5d477f6ddae273943596d4a1a5730b"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+ "equivalent",
+ "hashbrown 0.15.5",
+ "lock_api",
+ "parking_lot_core",
+]
+
+[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1853,11 +1867,14 @@ name = "mangad-neon"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "async-stream",
  "async-trait",
  "axum",
  "chrono",
  "clap",
+ "dashmap",
  "dotenvy",
+ "futures-util",
  "image",
  "meilisearch-sdk",
  "paste",
@@ -1870,6 +1887,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-retry",
+ "tokio-stream",
  "tokio-util",
  "toml",
  "tracing",

@@ -18,7 +18,7 @@ pub struct CanonicalizeTask {
 
 pub struct InnerTask {
     pub task: Task,
-    pub id_tx: tokio::sync::oneshot::Sender<i32>,
+    pub tid_tx: tokio::sync::oneshot::Sender<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

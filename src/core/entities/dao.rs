@@ -196,3 +196,17 @@ pub struct SearchQuery {
     pub query: Option<String>,
     pub filter: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SubTaskResult {
+    pub tid: i32,
+    pub index: i32,
+    pub status: SubTaskStatus,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum SubTaskStatus {
+    Ok,
+    Err(String)
+}

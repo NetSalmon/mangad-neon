@@ -5,13 +5,15 @@ use mangad_neon::error::Error;
 use mangad_neon::log;
 use service::service;
 
+pub mod canonicalize;
 pub mod crawler;
 pub mod searching;
 pub mod service;
+pub mod thumbnail;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let config = init_config()?;
+    let (path, config) = init_config()?;
 
     log::init(&config.log);
 
@@ -24,5 +26,5 @@ async fn main() -> Result<(), Error> {
         tracing::warn!("Need HTTPS for enabled auth");
     }
 
-    Ok(service(config).await?)
+    Ok(service(config, path).await?)
 }

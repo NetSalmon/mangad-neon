@@ -38,6 +38,19 @@ impl IntoDatabaseUrl for Arc<Config> {
     }
 }
 
+impl IntoDatabaseUrl for Config {
+    fn to_database_url(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}",
+            self.database.user,
+            self.database.password,
+            self.database.host,
+            self.database.port,
+            self.database.database,
+        )
+    }
+}
+
 impl Repository {
     pub async fn new(url: &str) -> Result<Self, Error> {
         tracing::debug!("Connecting to database...");
@@ -83,7 +96,12 @@ impl Repository {
         task_status: TaskStatus,
         reason: Error,
     ) -> Result<tasks::Model, Error> {
-        tracing::warn!("Task {} failed: {:?}. Updating status to {:?}", id, reason, task_status);
+        tracing::warn!(
+            "Task {} failed: {:?}. Updating status to {:?}",
+            id,
+            reason,
+            task_status
+        );
         let new = tasks::ActiveModel {
             id: Set(id),
             status: Set(task_status),

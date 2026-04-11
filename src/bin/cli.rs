@@ -1,12 +1,12 @@
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
-use uuid::Uuid;
+use mangad_neon::core::config::LogConfig;
 use mangad_neon::core::entities::inner::ExpireTime;
 use mangad_neon::core::init::init_config;
 use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
 use mangad_neon::error::Error;
 use mangad_neon::log;
-use mangad_neon::core::config::LogConfig;
+use uuid::Uuid;
 
 #[derive(Parser)]
 #[command(name = "mangad-neon")]
@@ -74,8 +74,13 @@ pub enum TokenAction {
         #[arg(short, long, required_unless_present = "uuid", conflicts_with = "uuid")]
         token: Option<String>,
         /// 要吊销的 Token UUID
-        #[arg(short, long, required_unless_present = "token", conflicts_with = "token")]
-        uuid: Option<Uuid>
+        #[arg(
+            short,
+            long,
+            required_unless_present = "token",
+            conflicts_with = "token"
+        )]
+        uuid: Option<Uuid>,
     },
     /// 列出所有令牌
     List {
@@ -84,8 +89,8 @@ pub enum TokenAction {
         size: u64,
         /// 页数
         #[arg(short = 'n', long = "number", default_value = "0")]
-        number: u64
-    }
+        number: u64,
+    },
 }
 
 pub fn to_expire_time(s: &str) -> ExpireTime {
@@ -116,7 +121,7 @@ pub async fn main() -> Result<(), Error> {
 
     let repo = match (config, cli.database_url) {
         (_, Some(database_url)) => Repository::new(&database_url).await?,
-        (Ok(database_url), None) => Repository::new(&database_url.to_database_url()).await?,
+        (Ok((_, database_url)), None) => Repository::new(&database_url.to_database_url()).await?,
         _ => {
             return Err(Error::CustomError("No Database URL provided".into()));
         }
@@ -124,7 +129,11 @@ pub async fn main() -> Result<(), Error> {
 
     match cli.command {
         Commands::Token(TokenArgs { action }) => match action {
-            TokenAction::Create { expire, remark, description } => {
+            TokenAction::Create {
+                expire,
+                remark,
+                description,
+            } => {
                 let (token, secret) = repo
                     .create_token(to_expire_time(&expire), remark, description)
                     .await?;
@@ -135,7 +144,7 @@ pub async fn main() -> Result<(), Error> {
                     "expire time: {}",
                     match token.expire_time {
                         Some(time) => time.to_rfc2822(),
-                        None => "Never".to_string()
+                        None => "Never".to_string(),
                     }
                 );
             }
@@ -192,12 +201,7 @@ pub async fn main() -> Result<(), Error> {
                 );
                 println!(
                     "│ {:36} │ {:10} │ {:15} │ {:31} │ {:31} │ {:9} │",
-                    "UUID",
-                    "REMARK",
-                    "DESCRIPTION",
-                    "CREATE AT",
-                    "EXPIRE AT",
-                    "STATUS"
+                    "UUID", "REMARK", "DESCRIPTION", "CREATE AT", "EXPIRE AT", "STATUS"
                 );
                 println!(
                     "├─{:─^36}─┼─{:─^10}─┼─{:─^15}─┼─{:─^31}─┼─{:─^31}─┼─{:─^9}─┤",

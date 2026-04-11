@@ -12,11 +12,12 @@ pub mod basic {
 }
 
 pub mod business {
-    use std::convert::Infallible;
     use crate::service::AppState;
     use crate::service::handlers::ApiResult;
     use axum::Json;
     use axum::extract::{Path, Query, State};
+    use axum::response::Sse;
+    use axum::response::sse::Event;
     use mangad_neon::core::entities::dao::active::IntoActiveModel;
     use mangad_neon::core::entities::dao::crawler::Task;
     use mangad_neon::core::entities::dao::{
@@ -31,9 +32,8 @@ pub mod business {
     use paste::paste;
     use sea_orm::entity::prelude::*;
     use sea_orm::{Set, TransactionTrait};
+    use std::convert::Infallible;
     use std::sync::Arc;
-    use axum::response::Sse;
-    use axum::response::sse::Event;
     use tokio::sync::oneshot;
     use tokio_stream::Stream;
 
@@ -276,6 +276,8 @@ pub mod resource {
     use mangad_neon::error::Error;
     use std::sync::Arc;
     use tokio::fs::File;
+    use crate::thumbnail;
+    use crate::thumbnail::ThumbnailTaskSingle;
 
     pub async fn images(
         State(state): State<Arc<AppState>>,
@@ -284,9 +286,16 @@ pub mod resource {
         let dir = format!("{:0>10}", mid);
         let file = format!("{:0>10}.webp", index);
 
-        let path = state.config.crawler.storage.join(dir).join(file);
+        let path = state
+            .config
+            .read()
+            .await
+            .crawler
+            .storage
+            .join(dir)
+            .join(file);
 
-        println!("{}", path.display());
+        tracing::debug!("visit image {}", path.display());
 
         let f = File::open(path).await?;
         let stream = tokio_util::io::ReaderStream::new(f);
@@ -296,5 +305,82 @@ pub mod resource {
             .body(body)?;
 
         Ok(response)
+    }
+    
+    pub async fn thumbnails(
+        State(state): State<Arc<AppState>>,
+        Path((mid, index)): Path<(i32, i32)>,
+    ) -> Result<Response<Body>, Error> {
+        let dir = format!("{:0>10}", mid);
+        let file = format!("{:0>10}.webp", index);
+
+        let path = state
+            .config
+            .read()
+            .await
+            .crawler
+            .storage
+            .join(&dir)
+            .join(thumbnail::THUMBNAIL_PATH)
+            .join(&file);
+
+        println!("{}", path.display());
+
+        let f = if let Ok(f) = File::open(path).await { f } else {
+            let path = state
+                .config
+                .read()
+                .await
+                .crawler
+                .storage
+                .join(dir)
+                .join(file);
+            let _ = state.thumbnail_single_tx.send(ThumbnailTaskSingle {
+                mid,
+                index,
+            }).await;
+            
+            File::open(path).await?
+        };
+        
+        let stream = tokio_util::io::ReaderStream::new(f);
+        let body = Body::from_stream(stream);
+        let response = Response::builder()
+            .header(axum::http::header::CONTENT_TYPE, "image/webp")
+            .body(body)?;
+
+        Ok(response)
+    }
+}
+
+pub mod configure {
+    use crate::service::AppState;
+    use crate::service::handlers::ApiResult;
+    use axum::Json;
+    use axum::extract::State;
+    use mangad_neon::core::config::Config;
+    use mangad_neon::error::Error;
+    use std::sync::Arc;
+
+    pub async fn select_config(State(state): State<Arc<AppState>>) -> ApiResult<Config> {
+        let config = state.config.read().await.clone();
+        if !config.permissions.allow_remote_visit {
+            Err(Error::ConfigPermissionDenied)?;
+        }
+        Ok(config.into())
+    }
+
+    pub async fn update_config(
+        State(state): State<Arc<AppState>>,
+        Json(config): Json<Config>,
+    ) -> ApiResult<bool> {
+        let mut write = state.config.write().await;
+        if !write.permissions.allow_remote_visit {
+            Err(Error::ConfigPermissionDenied)?;
+        }
+        *write = config.clone();
+        let content = toml::to_string_pretty(&config)?;
+        tokio::fs::write(&*state.config_path, content).await?;
+        Ok(true.into())
     }
 }

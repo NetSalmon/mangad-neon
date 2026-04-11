@@ -208,5 +208,5 @@ pub struct SubTaskResult {
 #[serde(rename_all = "lowercase")]
 pub enum SubTaskStatus {
     Ok,
-    Err(String)
+    Err(String),
 }

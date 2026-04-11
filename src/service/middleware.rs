@@ -1,16 +1,16 @@
-use std::net::SocketAddr;
 use crate::service::AppState;
+use axum::extract::ConnectInfo;
+use axum::http::HeaderMap;
 use axum::{
     extract::{Request, State},
     http::StatusCode,
     middleware::Next,
     response::Response,
 };
+use chrono::Utc;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Instant;
-use axum::extract::ConnectInfo;
-use axum::http::HeaderMap;
-use chrono::Utc;
 
 pub async fn authorization(
     State(state): State<Arc<AppState>>,
@@ -65,7 +65,7 @@ pub async fn log(
     let latency = start.elapsed();
     let status = response.status();
     let now = Utc::now().format("%d/%b/%Y:%H:%M:%S %z");
-    
+
     tracing::info!(
         ip = %client_ip,
         timestamp = %now,

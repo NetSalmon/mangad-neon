@@ -1,5 +1,5 @@
-use crate::core::entities::inner::{CanonicalizeResult, CanonicalizeTask};
-use crate::error::Error;
+use mangad_neon::core::entities::inner::{CanonicalizeResult, CanonicalizeTask};
+use mangad_neon::error::Error;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::sync::mpsc::Receiver;
@@ -56,7 +56,7 @@ impl Canonicalization {
                         }
                     };
 
-                    let file_path = can.base_path.join(format!("{:0>10}.webp", can.pid));
+                    let file_path = can.base_path.join(format!("{:0>10}.webp", can.pid + 1)); // start from 1
 
                     tokio::fs::write(&file_path, &encoded_data).await?;
 

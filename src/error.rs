@@ -6,6 +6,7 @@ use axum::{Json, http};
 use http::header::ToStrError;
 use sea_orm::DbErr;
 use std::convert::Infallible;
+use std::path::PathBuf;
 use tokio::sync::AcquireError;
 use tokio::task::JoinError;
 
@@ -61,7 +62,7 @@ pub enum Error {
     NotFound,
     #[error("sqlx core error {0}")]
     SqlxCoreError(#[from] sqlx_core::error::Error),
-    #[error("meili search error {0}")]
+    #[error("meilisearch error {0}")]
     MeiliSearchError(#[from] meilisearch_sdk::errors::Error),
     #[error("{0}")]
     CustomError(String),
@@ -69,6 +70,12 @@ pub enum Error {
     BadRequestError(String),
     #[error("http error {0}")]
     HttpError(#[from] http::Error),
+    #[error("toml serialization error {0}")]
+    TomlSerializationError(#[from] toml::ser::Error),
+    #[error("config permission denied")]
+    ConfigPermissionDenied,
+    #[error("invalid image path {0}")]
+    InvalidImagePath(PathBuf),
 }
 
 impl IntoResponse for Error {
@@ -100,9 +107,12 @@ impl IntoResponse for Error {
             | Error::CustomError(_)
             | Error::HttpError(_)
             | Error::MeiliSearchError(_)
+            | Error::TomlSerializationError(_)
+            | Error::InvalidImagePath(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::NotFound => StatusCode::NOT_FOUND,
             Error::BadRequestError(_) => StatusCode::BAD_REQUEST,
+            Error::ConfigPermissionDenied => StatusCode::FORBIDDEN,
         };
 
         let body = ApiResp {

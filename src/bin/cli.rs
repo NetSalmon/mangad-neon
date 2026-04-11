@@ -1,5 +1,6 @@
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
+use uuid::Uuid;
 use mangad_neon::core::entities::inner::ExpireTime;
 use mangad_neon::core::init::init_config;
 use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
@@ -67,18 +68,22 @@ pub enum TokenAction {
         /// 要验证的 Token 字符串
         token: String,
     },
-    /// 吊销指定令牌
+    /// 吊销指定令牌 Token UUID 二选一
     Revoke {
         /// 要吊销的 Token 字符串
-        token: String,
+        #[arg(short, long, required_unless_present = "uuid", conflicts_with = "uuid")]
+        token: Option<String>,
+        /// 要吊销的 Token UUID
+        #[arg(short, long, required_unless_present = "token", conflicts_with = "token")]
+        uuid: Option<Uuid>
     },
     /// 列出所有令牌
     List {
         /// 每页大小
-        #[arg(default_value = "20")]
+        #[arg(short = 's', long = "size", default_value = "20")]
         size: u64,
         /// 页数
-        #[arg(default_value = "0")]
+        #[arg(short = 'n', long = "number", default_value = "0")]
         number: u64
     }
 }
@@ -140,8 +145,16 @@ pub async fn main() -> Result<(), Error> {
                 println!("Token verified: {}", ok);
             }
 
-            TokenAction::Revoke { token } => {
-                match repo.revoke_token(&token).await {
+            TokenAction::Revoke { token, uuid } => {
+                let result = if let Some(token) = token {
+                    repo.revoke_token(&token).await
+                } else if let Some(uuid) = uuid {
+                    repo.revoke_token(&uuid).await
+                } else {
+                    unreachable!("Clap ensures one of token or uuid is present")
+                };
+
+                match result {
                     Ok(_) => println!("Token successfully revoked"),
                     Err(e) => println!("Revocation failed {e}"),
                 }
@@ -149,18 +162,36 @@ pub async fn main() -> Result<(), Error> {
 
             TokenAction::List { size, number } => {
                 let tokens = repo.list_tokens(size, number).await?;
-                println!("Now: {}", Utc::now().to_rfc2822());
                 println!(
-                    "+-{:36}-+-{:10}-+-{:15}-+-{:31}-+-{:31}-+-{:9}-+",
-                    "-".repeat(36),
-                    "-".repeat(10),
-                    "-".repeat(15),
-                    "-".repeat(31),
-                    "-".repeat(31),
-                    "-".repeat(9),
+                    "┌{}┬{}┬{}┬{}┬{}┬{}┐",
+                    "─".repeat(5),
+                    "─".repeat(63),
+                    "─".repeat(13),
+                    "─".repeat(25),
+                    "─".repeat(13),
+                    "─".repeat(25),
                 );
                 println!(
-                    "| {:36} | {:10} | {:15} | {:31} | {:31} | {:9} |",
+                    "│ Now │ {:61} │ Page Size   │ {:23} │ Page Number │ {:23} │",
+                    Utc::now().to_rfc2822(),
+                    size,
+                    number
+                );
+                println!(
+                    "├─{}─┴─{}─┬─{}─┬─{}─┼─{}─┴─{}─┬─{}─┴─{}─┴─{}─┬─{}─┤",
+                    "─".repeat(3),
+                    "─".repeat(30),
+                    "─".repeat(10),
+                    "─".repeat(15),
+                    "─".repeat(11),
+                    "─".repeat(17),
+                    "─".repeat(3),
+                    "─".repeat(11),
+                    "─".repeat(11),
+                    "─".repeat(9),
+                );
+                println!(
+                    "│ {:36} │ {:10} │ {:15} │ {:31} │ {:31} │ {:9} │",
                     "UUID",
                     "REMARK",
                     "DESCRIPTION",
@@ -169,17 +200,17 @@ pub async fn main() -> Result<(), Error> {
                     "STATUS"
                 );
                 println!(
-                    "+-{:36}-+-{:10}-+-{:15}-+-{:31}-+-{:31}-+-{:9}-+",
-                    "-".repeat(36),
-                    "-".repeat(10),
-                    "-".repeat(15),
-                    "-".repeat(31),
-                    "-".repeat(31),
-                    "-".repeat(9),
+                    "├─{:─^36}─┼─{:─^10}─┼─{:─^15}─┼─{:─^31}─┼─{:─^31}─┼─{:─^9}─┤",
+                    "─".repeat(36),
+                    "─".repeat(10),
+                    "─".repeat(15),
+                    "─".repeat(31),
+                    "─".repeat(31),
+                    "─".repeat(9),
                 );
                 for token in tokens {
                     println!(
-                        "| {:36} | {:10} | {:15} | {:31} | {:31} | {:9} |",
+                        "│ {:36} │ {:10} │ {:15} │ {:31} │ {:31} │ {:9} │",
                         token.id,
                         token.remark.unwrap_or_else(|| "None".to_string()),
                         token.description.unwrap_or_else(|| "None".to_string()),
@@ -203,15 +234,14 @@ pub async fn main() -> Result<(), Error> {
                     );
                 }
                 println!(
-                    "+-{:36}-+-{:10}-+-{:15}-+-{:31}-+-{:31}-+-{:9}-+",
-                    "-".repeat(36),
-                    "-".repeat(10),
-                    "-".repeat(15),
-                    "-".repeat(31),
-                    "-".repeat(31),
-                    "-".repeat(9),
+                    "└{}┴{}┴{}┴{}┴{}┴{}┘",
+                    "─".repeat(38),
+                    "─".repeat(12),
+                    "─".repeat(17),
+                    "─".repeat(33),
+                    "─".repeat(33),
+                    "─".repeat(11),
                 );
-                println!("Page Size: {}\nPage Number: {}", size, number);
             }
         },
     }

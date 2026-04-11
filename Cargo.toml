@@ -38,7 +38,5 @@ meilisearch-sdk = "0.32.0"
 sqlx-core = "0.8.6"
 tokio-util = "0.7.18"
 clap = { version = "4.6.0", features = ["derive", "env"] }
-unicode-width = "0.2.2"
-unicode-segmentation = "1.13.2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

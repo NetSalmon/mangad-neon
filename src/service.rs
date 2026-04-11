@@ -21,9 +21,13 @@ pub struct AppState {
 }
 
 pub async fn service(config: Arc<Config>) -> Result<(), Error> {
+    tracing::info!("Starting service on {}", config.service.net.host);
+
     let (mut dispatch, tx) = Dispatch::new(config.clone());
     let repo = Arc::new(Repository::new(&config.to_database_url()).await?);
     let index = Arc::new(searching::index(config.clone()).await?);
+
+    tracing::info!("Database and Search index connected");
 
     let state = Arc::new(AppState {
         config: config.clone(),
@@ -35,13 +39,15 @@ pub async fn service(config: Arc<Config>) -> Result<(), Error> {
     let clone_repo = repo.clone();
 
     tokio::spawn(async move {
-        let err = dispatch.run(clone_repo).await;
-        println!("dispatch:\n{:#?}", err);
+        if let Err(err) = dispatch.run(clone_repo).await {
+            tracing::error!("Crawler dispatch error: {:?}", err);
+        }
     });
 
     tokio::spawn(async move {
-        let err = sync(repo.clone(), index).await;
-        println!("sync:\n{:#?}", err);
+        if let Err(err) = sync(repo.clone(), index).await {
+            tracing::error!("Search sync error: {:?}", err);
+        }
     });
 
     let addr = tokio::net::TcpListener::bind(&config.service.net.host).await?;

@@ -1,8 +1,11 @@
+use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use mangad_neon::core::entities::inner::ExpireTime;
 use mangad_neon::core::init::init_config;
 use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
 use mangad_neon::error::Error;
+use mangad_neon::log;
+use mangad_neon::core::config::LogConfig;
 
 #[derive(Parser)]
 #[command(name = "mangad-neon")]
@@ -16,6 +19,16 @@ pub struct Cli {
         help = "Database URL (e.g. postgres://user:pass@localhost:5432/db)"
     )]
     pub database_url: Option<String>,
+
+    /// 日志级别 (优先级: 参数 > 环境变量 > 默认 error)
+    #[arg(
+        short = 'l',
+        long = "log-level",
+        env = "MANGAD_LOG_LEVEL",
+        global = true,
+        help = "Log level (trace, debug, info, warn, error)"
+    )]
+    pub log_level: Option<String>,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -84,6 +97,16 @@ pub fn to_expire_time(s: &str) -> ExpireTime {
 #[tokio::main]
 pub async fn main() -> Result<(), Error> {
     let cli = Cli::parse();
+
+    // 初始化日志：命令行参数 > 环境变量 > 默认 error
+    let log_level = cli.log_level.clone().unwrap_or_else(|| {
+        std::env::var("MANGAD_LOG_LEVEL").unwrap_or_else(|_| "error".to_string())
+    });
+
+    log::init(&LogConfig {
+        level: Some(log_level),
+    });
+
     let config = init_config();
 
     let repo = match (config, cli.database_url) {
@@ -126,9 +149,69 @@ pub async fn main() -> Result<(), Error> {
 
             TokenAction::List { size, number } => {
                 let tokens = repo.list_tokens(size, number).await?;
+                println!("Now: {}", Utc::now().to_rfc2822());
+                println!(
+                    "+-{:36}-+-{:10}-+-{:15}-+-{:31}-+-{:31}-+-{:9}-+",
+                    "-".repeat(36),
+                    "-".repeat(10),
+                    "-".repeat(15),
+                    "-".repeat(31),
+                    "-".repeat(31),
+                    "-".repeat(9),
+                );
+                println!(
+                    "| {:36} | {:10} | {:15} | {:31} | {:31} | {:9} |",
+                    "UUID",
+                    "REMARK",
+                    "DESCRIPTION",
+                    "CREATE AT",
+                    "EXPIRE AT",
+                    "STATUS"
+                );
+                println!(
+                    "+-{:36}-+-{:10}-+-{:15}-+-{:31}-+-{:31}-+-{:9}-+",
+                    "-".repeat(36),
+                    "-".repeat(10),
+                    "-".repeat(15),
+                    "-".repeat(31),
+                    "-".repeat(31),
+                    "-".repeat(9),
+                );
                 for token in tokens {
-                    println!("{token:#?}")
+                    println!(
+                        "| {:36} | {:10} | {:15} | {:31} | {:31} | {:9} |",
+                        token.id,
+                        token.remark.unwrap_or_else(|| "None".to_string()),
+                        token.description.unwrap_or_else(|| "None".to_string()),
+                        token.create_time.to_rfc2822(),
+                        if let Some(t) = token.expire_time {
+                            t.to_rfc2822()
+                        } else {
+                            "Never".to_string()
+                        },
+                        match (token.expire_time, token.is_revoked) {
+                            (_, true) => "Revoked",
+                            (Some(t), false) => {
+                                if Utc::now() > t {
+                                    "Expired"
+                                } else {
+                                    "Available"
+                                }
+                            }
+                            (None, false) => "Available",
+                        },
+                    );
                 }
+                println!(
+                    "+-{:36}-+-{:10}-+-{:15}-+-{:31}-+-{:31}-+-{:9}-+",
+                    "-".repeat(36),
+                    "-".repeat(10),
+                    "-".repeat(15),
+                    "-".repeat(31),
+                    "-".repeat(31),
+                    "-".repeat(9),
+                );
+                println!("Page Size: {}\nPage Number: {}", size, number);
             }
         },
     }

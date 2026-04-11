@@ -7,6 +7,13 @@ pub struct Config {
     pub service: ServiceConfig,
     pub crawler: CrawlerConfig,
     pub search: SearchConfig,
+    #[serde(default)]
+    pub log: LogConfig,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct LogConfig {
+    pub level: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

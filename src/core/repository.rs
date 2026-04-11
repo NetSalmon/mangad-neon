@@ -40,18 +40,22 @@ impl IntoDatabaseUrl for Arc<Config> {
 
 impl Repository {
     pub async fn new(url: &str) -> Result<Self, Error> {
+        tracing::debug!("Connecting to database...");
         let db = sea_orm::Database::connect(url).await?;
+        tracing::info!("Database connected successfully");
 
         Ok(Self { db })
     }
 
     pub async fn insert_task(&self, task: &Task) -> Result<tasks::Model, Error> {
+        tracing::debug!("Inserting new task into database");
         let new = tasks::ActiveModel {
             task: Set(serde_json::to_value(&task)?),
             ..Default::default()
         };
 
         let resp = Tasks::insert(new).exec_with_returning(&self.db).await?;
+        tracing::debug!("Task inserted with ID: {}", resp.id);
 
         Ok(resp)
     }
@@ -61,6 +65,7 @@ impl Repository {
         id: i32,
         task_status: TaskStatus,
     ) -> Result<tasks::Model, Error> {
+        tracing::debug!("Updating task {} status to {:?}", id, task_status);
         let new = tasks::ActiveModel {
             id: Set(id),
             status: Set(task_status),
@@ -78,6 +83,7 @@ impl Repository {
         task_status: TaskStatus,
         reason: Error,
     ) -> Result<tasks::Model, Error> {
+        tracing::warn!("Task {} failed: {:?}. Updating status to {:?}", id, reason, task_status);
         let new = tasks::ActiveModel {
             id: Set(id),
             status: Set(task_status),

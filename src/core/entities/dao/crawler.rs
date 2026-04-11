@@ -82,6 +82,13 @@ pub struct SubTask {
 }
 
 impl Task {
+    pub fn title(&self) -> &str {
+        self.literatures
+            .first()
+            .and_then(|l| l.title.as_deref())
+            .unwrap_or("Untitled")
+    }
+
     pub fn split(&self) -> Result<Vec<SubTask>, Error> {
         let mut subtasks = vec![];
 

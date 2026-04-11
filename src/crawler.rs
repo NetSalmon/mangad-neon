@@ -80,30 +80,31 @@ impl Dispatch {
     pub async fn run(&mut self, repo: Arc<Repository>) -> Result<(), Error> {
         let storage_root = self.storage_root.clone();
         'main_loop: while let Some(task) = self.rx.recv().await {
+            tracing::info!("Received new task: {}", task.task.title());
             let (tx, mut rx) = tokio::sync::mpsc::channel::<(i32, Result<PathBuf, Error>)>(1024);
-            let (task, id_tx) = (task.task, task.id_tx);
+            let (task, _id_tx) = (task.task, task.id_tx);
             let Ok(subtasks) = task.split() else {
-                eprintln!("failed to split subtasks");
+                tracing::error!("Failed to split subtasks for task: {}", task.title());
                 continue 'main_loop;
             };
 
             let tid = if let Ok(task) = repo.insert_task(&task).await {
                 task.id
             } else {
-                eprintln!("unable to insert task");
+                tracing::error!("Unable to insert task into database: {}", task.title());
                 continue 'main_loop;
             };
 
-            let _ = id_tx.send(tid); // 返回task id
+            tracing::info!("Task {} inserted with ID: {}", task.title(), tid);
 
             let format_tid = format!("{:0>10}", tid);
 
             let cache_at = Arc::new(storage_root.join(CACHE_DIRNAME).join(&format_tid));
 
-            println!("cache at: {:#?}", cache_at);
+            tracing::debug!("Task {} cache at: {:?}", task.title(), cache_at);
 
             if tokio::fs::create_dir_all(&cache_at.as_ref()).await.is_err() {
-                eprintln!("failed to create cache dir");
+                tracing::error!("Failed to create cache directory for task: {}", task.title());
                 continue 'main_loop;
             };
 
@@ -139,7 +140,6 @@ impl Dispatch {
                         };
 
                         let buffer = tokio_retry::Retry::spawn(strategy, || {
-                            println!("testing");
                             let crawler = clone_crawler.clone();
                             let subtask = subtask.clone();
                             let client = clone_client.clone();
@@ -169,7 +169,9 @@ impl Dispatch {
                     }
                     .await;
 
-                    println!("result: {:#?}", res);
+                    if let Err(ref err) = res {
+                        tracing::error!("Subtask {} failed: {:?}", index, err);
+                    }
 
                     clone_tx.send((index, res)).await.unwrap();
                 });
@@ -178,13 +180,12 @@ impl Dispatch {
             drop(tx);
 
             while let Some((index, res)) = rx.recv().await {
-                print!("subtask [{}] status: ", index);
                 match res {
                     Ok(_) => {
-                        println!("done");
+                        tracing::debug!("Subtask {} completed successfully", index);
                     }
                     Err(err) => {
-                        eprintln!("failed");
+                        tracing::error!("Subtask {} failed, aborting task {}: {:?}", index, tid, err);
                         let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
                         repo.update_task_status_with_reason(tid, TaskStatus::Failure, err)
                             .await?;
@@ -193,7 +194,7 @@ impl Dispatch {
                 }
             }
 
-            println!("all download done");
+            tracing::info!("All subtasks for task {} downloaded", tid);
             let id = match repo.insert_manga_from_task(&task).await {
                 Ok(model) => model.id,
                 Err(err) => {

@@ -1,4 +1,5 @@
 pub mod error;
+pub mod log;
 
 pub mod core {
     pub mod config;

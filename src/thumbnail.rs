@@ -1,9 +1,9 @@
-use std::path::PathBuf;
 use image::ImageFormat;
+use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
 use mangad_neon::error::Error;
+use std::path::PathBuf;
 use std::sync::Arc;
-use mangad_neon::CHANNEL_SIZE;
 
 pub static THUMBNAIL_PATH: &str = "thumbnail";
 
@@ -25,10 +25,7 @@ pub struct Thumbnail {
 impl Thumbnail {
     pub fn new(config: Arc<Config>) -> (Self, tokio::sync::mpsc::Sender<ThumbnailTask>) {
         let (tx, task_rx) = tokio::sync::mpsc::channel(CHANNEL_SIZE);
-        let thumb = Thumbnail {
-            config,
-            task_rx
-        };
+        let thumb = Thumbnail { config, task_rx };
         (thumb, tx)
     }
 
@@ -42,18 +39,20 @@ impl Thumbnail {
 
                 match task.r#type {
                     TaskType::Single(index) => {
-                        self.proc_single(task, &thumbnail_path, &storage_path, index).await?;
+                        self.proc_single(task, &thumbnail_path, &storage_path, index)
+                            .await?;
                     }
                     TaskType::Whole(page_count) => {
                         for index in 1..=page_count {
-                            self.proc_single(task, &thumbnail_path, &storage_path, index).await?;
+                            self.proc_single(task, &thumbnail_path, &storage_path, index)
+                                .await?;
                         }
                     }
                 }
 
                 Ok(())
             }
-                .await;
+            .await;
 
             if let Err(e) = resp {
                 tracing::error!("{:?}", e);
@@ -63,7 +62,13 @@ impl Thumbnail {
         Ok(())
     }
 
-    async fn proc_single(&mut self, task: &ThumbnailTask, thumbnail_path: &PathBuf, storage_path: &PathBuf, index: i32) -> Result<(), Error> {
+    async fn proc_single(
+        &mut self,
+        task: &ThumbnailTask,
+        thumbnail_path: &PathBuf,
+        storage_path: &PathBuf,
+        index: i32,
+    ) -> Result<(), Error> {
         let file = format!("{:0>10}.webp", index);
 
         let thumbnail_path = thumbnail_path.join(&file);

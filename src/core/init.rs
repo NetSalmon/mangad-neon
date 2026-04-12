@@ -14,7 +14,10 @@ pub fn init_config() -> Result<(PathBuf, Config), Error> {
         let content = &std::fs::read_to_string(&path)?;
         toml::from_str::<Config>(content)?
     } else {
-        tracing::warn!("Config file not found at {:?}, using defaults/env vars", path);
+        tracing::warn!(
+            "Config file not found at {:?}, using defaults/env vars",
+            path
+        );
         Config::default()
     };
 

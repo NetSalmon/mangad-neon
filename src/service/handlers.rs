@@ -4,18 +4,18 @@ use mangad_neon::error::Error;
 pub type ApiResult<T> = Result<ApiResp<T>, Error>;
 
 pub mod basic {
-    use std::sync::Arc;
-    use axum::extract::State;
-    use serde::Serialize;
     use crate::service::AppState;
     use crate::service::handlers::ApiResult;
+    use axum::extract::State;
+    use serde::Serialize;
+    use std::sync::Arc;
 
     #[derive(Serialize, Debug, Clone)]
     #[serde(rename_all = "lowercase")]
     pub enum SpawnStatus {
         Running,
         Unknown,
-        Error{ message: String }
+        Error { message: String },
     }
 
     impl Default for SpawnStatus {
@@ -29,12 +29,10 @@ pub mod basic {
         thumbnail: SpawnStatus,
         dispatch: SpawnStatus,
         sync: SpawnStatus,
-        canonicalize: SpawnStatus
+        canonicalize: SpawnStatus,
     }
 
-    pub async fn health(
-        State(state): State<Arc<AppState>>,
-    ) -> ApiResult<SystemStatus> {
+    pub async fn health(State(state): State<Arc<AppState>>) -> ApiResult<SystemStatus> {
         let mut status = SystemStatus::default();
         status.thumbnail = state.worker.watch.thumbnail.borrow().clone();
         status.sync = state.worker.watch.sync.borrow().clone();
@@ -375,10 +373,12 @@ pub mod resource {
                 .join(dir)
                 .join(file);
             let _ = state
-                .worker.thumbnail_tx
+                .worker
+                .thumbnail_tx
                 .send(ThumbnailTask {
                     mid,
-                    r#type: TaskType::Single(index) })
+                    r#type: TaskType::Single(index),
+                })
                 .await;
 
             File::open(path).await?

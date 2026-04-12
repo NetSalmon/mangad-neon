@@ -1,5 +1,8 @@
+use crate::crawler::jmcomic::JmComicCrawler;
+use crate::thumbnail::{TaskType, ThumbnailTask};
 use async_trait::async_trait;
 use default::DefaultCrawler;
+use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
 use mangad_neon::core::entities::dao::crawler::SubTask;
 use mangad_neon::core::entities::dao::{SubTaskResult, SubTaskStatus};
@@ -15,9 +18,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
 use tokio_retry::strategy::ExponentialBackoff;
-use mangad_neon::CHANNEL_SIZE;
-use crate::crawler::jmcomic::JmComicCrawler;
-use crate::thumbnail::{TaskType, ThumbnailTask};
 
 mod default;
 pub mod jmcomic;
@@ -96,9 +96,7 @@ impl Dispatch {
         (dispatch, inner_task_tx)
     }
 
-    pub async fn run(
-        &mut self,
-    ) -> Result<(), Error> {
+    pub async fn run(&mut self) -> Result<(), Error> {
         let storage_root = self.storage_root.clone();
         'main_loop: while let Some(task) = self.rx.recv().await {
             tracing::info!("Received new task: {}", task.task.title());
@@ -231,7 +229,8 @@ impl Dispatch {
                         });
 
                         let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
-                        let model = self.repo
+                        let model = self
+                            .repo
                             .update_task_status_with_reason(tid, TaskStatus::Failure, err)
                             .await?;
                         let _ = self.task_tx.send(model);
@@ -246,7 +245,8 @@ impl Dispatch {
                 Err(err) => {
                     eprintln!("failed");
                     let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
-                    let model = self.repo
+                    let model = self
+                        .repo
                         .update_task_status_with_reason(tid, TaskStatus::Failure, err)
                         .await?;
                     let _ = self.task_tx.send(model);
@@ -254,7 +254,8 @@ impl Dispatch {
                 }
             };
 
-            let _ = self.thumbnail_tx
+            let _ = self
+                .thumbnail_tx
                 .send(ThumbnailTask {
                     mid: id,
                     r#type: TaskType::Whole(page_count),
@@ -267,7 +268,8 @@ impl Dispatch {
             if let Err(err) = tokio::fs::rename(&cache_at.as_ref(), &storage_at.as_ref()).await {
                 eprintln!("failed");
                 let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
-                let model = self.repo
+                let model = self
+                    .repo
                     .update_task_status_with_reason(tid, TaskStatus::Failure, Error::from(err))
                     .await?;
                 let _ = self.task_tx.send(model);

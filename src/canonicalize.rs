@@ -1,10 +1,10 @@
+use mangad_neon::CHANNEL_SIZE;
+use mangad_neon::core::config::Config;
 use mangad_neon::core::entities::inner::{CanonicalizeResult, CanonicalizeTask};
 use mangad_neon::error::Error;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::sync::mpsc;
-use mangad_neon::CHANNEL_SIZE;
-use mangad_neon::core::config::Config;
 
 pub struct Canonicalization {
     pub rx: mpsc::Receiver<CanonicalizeTask>,
@@ -15,7 +15,7 @@ impl Canonicalization {
     pub fn new(config: Arc<Config>) -> (Self, mpsc::Sender<CanonicalizeTask>) {
         let semaphore = Arc::new(Semaphore::new(config.crawler.image.semaphore));
         let (tx, rx) = mpsc::channel::<CanonicalizeTask>(CHANNEL_SIZE);
-        
+
         (Self { rx, semaphore }, tx)
     }
 

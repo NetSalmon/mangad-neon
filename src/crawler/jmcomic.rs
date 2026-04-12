@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use crate::crawler::Crawler;
 use async_trait::async_trait;
-use reqwest::Client;
 use mangad_neon::core::entities::dao::crawler::SubTask;
 use mangad_neon::error::Error;
-use crate::crawler::Crawler;
 use md5::{Digest, Md5};
+use reqwest::Client;
+use std::sync::Arc;
 
 pub struct JmComicCrawler;
 
@@ -15,7 +15,8 @@ impl Crawler for JmComicCrawler {
     }
 
     async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, Error> {
-        let id = subtask.extra
+        let id = subtask
+            .extra
             .ok_or(Error::CustomError("no extra data"))?
             .get("source_id")
             .ok_or(Error::CustomError("no id"))?

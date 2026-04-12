@@ -6,7 +6,7 @@ use mangad_neon::error::Error;
 use reqwest::Client;
 use std::sync::Arc;
 
-pub struct DefaultCrawler {}
+pub struct DefaultCrawler;
 
 #[async_trait]
 impl Crawler for DefaultCrawler {

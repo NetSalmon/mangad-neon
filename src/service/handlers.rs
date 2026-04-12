@@ -4,10 +4,44 @@ use mangad_neon::error::Error;
 pub type ApiResult<T> = Result<ApiResp<T>, Error>;
 
 pub mod basic {
+    use std::sync::Arc;
+    use axum::extract::State;
+    use serde::Serialize;
+    use crate::service::AppState;
     use crate::service::handlers::ApiResult;
 
-    pub async fn health() -> ApiResult<String> {
-        Ok("service is running".into())
+    #[derive(Serialize, Debug, Clone)]
+    #[serde(rename_all = "lowercase")]
+    pub enum SpawnStatus {
+        Running,
+        Unknown,
+        Error{ message: String }
+    }
+
+    impl Default for SpawnStatus {
+        fn default() -> Self {
+            Self::Unknown
+        }
+    }
+
+    #[derive(Serialize, Debug, Default)]
+    pub struct SystemStatus {
+        thumbnail: SpawnStatus,
+        dispatch: SpawnStatus,
+        sync: SpawnStatus,
+        canonicalize: SpawnStatus
+    }
+
+    pub async fn health(
+        State(state): State<Arc<AppState>>,
+    ) -> ApiResult<SystemStatus> {
+        let mut status = SystemStatus::default();
+        status.thumbnail = state.worker.watch.thumbnail.borrow().clone();
+        status.sync = state.worker.watch.sync.borrow().clone();
+        status.dispatch = state.worker.watch.dispatch.borrow().clone();
+        status.canonicalize = state.worker.watch.canonicalization.borrow().clone();
+
+        Ok(status.into())
     }
 }
 
@@ -44,7 +78,7 @@ pub mod business {
         let (tid_tx, tid_rx) = oneshot::channel();
         let inner_task = InnerTask { task, tid_tx };
 
-        state.crawler_tx.send(inner_task).await?;
+        state.worker.dispatch_tx.send(inner_task).await?;
 
         let id = tid_rx.await?;
 
@@ -64,7 +98,7 @@ pub mod business {
                     $(active.$f = Set($f);)*
 
                     let result = $path::Entity::update(active)
-                        .exec(&state.repo.db)
+                        .exec(&state.worker.repo.db)
                         .await?;
                     Ok(result.into())
                 }
@@ -93,7 +127,7 @@ pub mod business {
         Path(id): Path<i32>,
     ) -> ApiResult<Option<tags::Model>> {
         Ok(tags::Entity::find_by_id(id)
-            .one(&state.repo.db)
+            .one(&state.worker.repo.db)
             .await?
             .into())
     }
@@ -102,7 +136,7 @@ pub mod business {
         State(state): State<Arc<AppState>>,
         Path(id): Path<i32>,
     ) -> ApiResult<FullData> {
-        let tx = state.repo.db.begin().await?;
+        let tx = state.worker.repo.db.begin().await?;
 
         let m = metadata::Entity::find_by_id(id)
             .one(&tx)
@@ -157,7 +191,7 @@ pub mod business {
                         $(
                             .filter($entity::Column::[<$key:camel>].eq($key))
                         )*
-                        .one(&state.repo.db)
+                        .one(&state.worker.repo.db)
                         .await?
                         .ok_or(Error::NotFound)?;
                     Ok(result.into())
@@ -186,7 +220,7 @@ pub mod business {
                     };
 
                     let r = $entity::Entity::delete(active)
-                        .exec_with_returning(&state.repo.db)
+                        .exec_with_returning(&state.worker.repo.db)
                         .await?
                         .ok_or(Error::NotFound)?;
 
@@ -209,6 +243,7 @@ pub mod business {
         let r = match (query.query, query.filter) {
             (Some(q), Some(f)) => {
                 state
+                    .worker
                     .index
                     .search()
                     .with_query(&q)
@@ -219,6 +254,7 @@ pub mod business {
             }
             (Some(q), None) => {
                 state
+                    .worker
                     .index
                     .search()
                     .with_query(&q)
@@ -228,6 +264,7 @@ pub mod business {
             }
             (None, Some(f)) => {
                 state
+                    .worker
                     .index
                     .search()
                     .with_filter(&f)
@@ -246,8 +283,8 @@ pub mod business {
     pub async fn task_notice(
         State(state): State<Arc<AppState>>,
     ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Error> {
-        let mut task_rx = state.task_tx.subscribe();
-        let mut sub_task_rx = state.sub_task_tx.subscribe();
+        let mut task_rx = state.worker.task_tx.subscribe();
+        let mut sub_task_rx = state.worker.sub_task_tx.subscribe();
 
         let stream = async_stream::stream! {
             loop{
@@ -271,7 +308,7 @@ pub mod business {
 pub mod resource {
     use crate::service::AppState;
     use crate::thumbnail;
-    use crate::thumbnail::ThumbnailTaskSingle;
+    use crate::thumbnail::{TaskType, ThumbnailTask};
     use axum::body::Body;
     use axum::extract::{Path, State};
     use axum::response::Response;
@@ -338,8 +375,10 @@ pub mod resource {
                 .join(dir)
                 .join(file);
             let _ = state
-                .thumbnail_single_tx
-                .send(ThumbnailTaskSingle { mid, index })
+                .worker.thumbnail_tx
+                .send(ThumbnailTask {
+                    mid,
+                    r#type: TaskType::Single(index) })
                 .await;
 
             File::open(path).await?

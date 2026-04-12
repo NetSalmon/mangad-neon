@@ -43,7 +43,7 @@ pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), Error>
                 "literatures" | "tag_metadata" => {
                     let id: i32 = payload
                         .parse()
-                        .map_err(|_| Error::CustomError("string parse to int error".to_string()))?;
+                        .map_err(|_| Error::CustomError("string parse to int error"))?;
                     let (literatures, tags) = repo.select_literatures_and_tags(id).await?;
                     let docs: Vec<Document> = literatures
                         .into_iter()
@@ -55,7 +55,7 @@ pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), Error>
                 "tags" => {
                     let id: i32 = payload
                         .parse()
-                        .map_err(|_| Error::CustomError("string parse to int error".to_string()))?;
+                        .map_err(|_| Error::CustomError("string parse to int error"))?;
 
                     let ids = repo.select_metadata_id_by_tag_id(id).await?;
                     let mut docs: Vec<Document> = vec![];
@@ -69,7 +69,7 @@ pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), Error>
                     index.add_documents(&docs, Some("id")).await?;
                 }
                 _ => {
-                    return Err(Error::CustomError("channel not support".to_string()));
+                    return Err(Error::CustomError("channel not support"));
                 }
             }
             Ok(())

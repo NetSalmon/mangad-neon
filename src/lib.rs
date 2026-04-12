@@ -8,3 +8,5 @@ pub mod core {
     pub mod repository;
     pub mod token;
 }
+
+pub static CHANNEL_SIZE: usize = 1024;

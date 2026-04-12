@@ -35,7 +35,7 @@ pub async fn authorization(
         return Err(StatusCode::UNAUTHORIZED);
     };
 
-    let Ok(ok) = state.repo.verify_token(token).await else {
+    let Ok(ok) = state.worker.repo.verify_token(token).await else {
         return Err(StatusCode::UNAUTHORIZED);
     };
 

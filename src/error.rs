@@ -6,6 +6,7 @@ use axum::{Json, http};
 use http::header::ToStrError;
 use sea_orm::DbErr;
 use std::convert::Infallible;
+use std::num::ParseIntError;
 use std::path::PathBuf;
 use tokio::sync::AcquireError;
 use tokio::task::JoinError;
@@ -65,7 +66,7 @@ pub enum Error {
     #[error("meilisearch error {0}")]
     MeiliSearchError(#[from] meilisearch_sdk::errors::Error),
     #[error("{0}")]
-    CustomError(String),
+    CustomError(&'static str),
     #[error("bad request error {0}")]
     BadRequestError(String),
     #[error("http error {0}")]
@@ -76,6 +77,8 @@ pub enum Error {
     ConfigPermissionDenied,
     #[error("invalid image path {0}")]
     InvalidImagePath(PathBuf),
+    #[error("parse int error {0}")]
+    ParseIntError(#[from] ParseIntError),
 }
 
 impl IntoResponse for Error {
@@ -109,6 +112,7 @@ impl IntoResponse for Error {
             | Error::MeiliSearchError(_)
             | Error::TomlSerializationError(_)
             | Error::InvalidImagePath(_)
+            | Error::ParseIntError(_)
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::NotFound => StatusCode::NOT_FOUND,
             Error::BadRequestError(_) => StatusCode::BAD_REQUEST,

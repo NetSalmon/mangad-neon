@@ -1860,6 +1860,7 @@ dependencies = [
  "clap",
  "dotenvy",
  "image",
+ "md-5",
  "meilisearch-sdk",
  "paste",
  "rand 0.10.0",

@@ -1,5 +1,3 @@
-use crate::canonicalize::Canonicalization;
-use crate::thumbnail::ThumbnailTask;
 use async_trait::async_trait;
 use default::DefaultCrawler;
 use mangad_neon::core::config::Config;
@@ -17,8 +15,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
 use tokio_retry::strategy::ExponentialBackoff;
+use mangad_neon::CHANNEL_SIZE;
+use crate::crawler::jmcomic::JmComicCrawler;
+use crate::thumbnail::{TaskType, ThumbnailTask};
 
 mod default;
+pub mod jmcomic;
 
 static CACHE_DIRNAME: &str = ".cache";
 
@@ -40,24 +42,34 @@ pub struct Dispatch {
     delay: u64,
     max_delay: Duration,
     max_retries: usize,
+
+    repo: Arc<Repository>,
+    task_tx: tokio::sync::broadcast::Sender<tasks::Model>,
+    sub_task_tx: tokio::sync::broadcast::Sender<SubTaskResult>,
+    thumbnail_tx: tokio::sync::mpsc::Sender<ThumbnailTask>,
 }
 
 impl Dispatch {
-    pub fn new(config: Arc<Config>) -> (Self, tokio::sync::mpsc::Sender<InnerTask>) {
-        let (tx, rx) = tokio::sync::mpsc::channel::<InnerTask>(1024);
-        let (canonical_tx, canonical_rx) = tokio::sync::mpsc::channel::<CanonicalizeTask>(1024);
+    pub fn new(
+        config: Arc<Config>,
+        repo: Arc<Repository>,
+        task_tx: tokio::sync::broadcast::Sender<tasks::Model>,
+        sub_task_tx: tokio::sync::broadcast::Sender<SubTaskResult>,
+        thumbnail_tx: tokio::sync::mpsc::Sender<ThumbnailTask>,
+        canonical_tx: tokio::sync::mpsc::Sender<CanonicalizeTask>,
+    ) -> (Self, tokio::sync::mpsc::Sender<InnerTask>) {
+        let (inner_task_tx, rx) = tokio::sync::mpsc::channel::<InnerTask>(CHANNEL_SIZE);
         let client = Arc::from(Client::new());
-        let clawers = HashMap::new();
+
+        // registry crawlers
+        let mut clawers: HashMap<String, Arc<dyn Crawler>> = HashMap::new();
+
+        let jmcomic = JmComicCrawler;
+        clawers.insert(jmcomic.site().to_owned(), Arc::new(jmcomic));
+
         let semaphore = Arc::new(Semaphore::new(config.crawler.semaphore));
-        let canonical_semaphore = Arc::new(Semaphore::new(config.crawler.image.semaphore));
 
-        let mut canonicalization = Canonicalization::new(canonical_rx, canonical_semaphore);
-
-        tokio::spawn(async move {
-            canonicalization.run().await;
-        });
-
-        let default_crawler = Arc::new(DefaultCrawler {});
+        let default_crawler = Arc::new(DefaultCrawler);
         let storage_root = Arc::new(config.crawler.storage.clone());
         let max_delay = Duration::from_secs(config.crawler.retry.max_delay);
         let delay = config.crawler.retry.delay * 1000;
@@ -75,17 +87,17 @@ impl Dispatch {
             delay,
             max_delay,
             max_retries,
+            repo,
+            task_tx,
+            sub_task_tx,
+            thumbnail_tx,
         };
 
-        (dispatch, tx)
+        (dispatch, inner_task_tx)
     }
 
     pub async fn run(
         &mut self,
-        repo: Arc<Repository>,
-        task_tx: tokio::sync::broadcast::Sender<tasks::Model>,
-        sub_task_tx: tokio::sync::broadcast::Sender<SubTaskResult>,
-        thumbnail_tx: tokio::sync::mpsc::Sender<ThumbnailTask>,
     ) -> Result<(), Error> {
         let storage_root = self.storage_root.clone();
         'main_loop: while let Some(task) = self.rx.recv().await {
@@ -97,7 +109,7 @@ impl Dispatch {
                 continue 'main_loop;
             };
 
-            let tid = if let Ok(task) = repo.insert_task(&task).await {
+            let tid = if let Ok(task) = self.repo.insert_task(&task).await {
                 task.id
             } else {
                 tracing::error!("Unable to insert task into database: {}", task.title());
@@ -194,7 +206,7 @@ impl Dispatch {
             drop(tx);
 
             while let Some((index, res)) = rx.recv().await {
-                let clone_sub_task_tx = sub_task_tx.clone();
+                let clone_sub_task_tx = self.sub_task_tx.clone();
                 match res {
                     Ok(_) => {
                         let _ = clone_sub_task_tx.send(SubTaskResult {
@@ -219,33 +231,33 @@ impl Dispatch {
                         });
 
                         let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
-                        let model = repo
+                        let model = self.repo
                             .update_task_status_with_reason(tid, TaskStatus::Failure, err)
                             .await?;
-                        let _ = task_tx.send(model);
+                        let _ = self.task_tx.send(model);
                         continue 'main_loop;
                     }
                 }
             }
 
             tracing::info!("All subtasks for task {} downloaded", tid);
-            let (id, page_count) = match repo.insert_manga_from_task(&task).await {
+            let (id, page_count) = match self.repo.insert_manga_from_task(&task).await {
                 Ok(model) => (model.id, model.page_count),
                 Err(err) => {
                     eprintln!("failed");
                     let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
-                    let model = repo
+                    let model = self.repo
                         .update_task_status_with_reason(tid, TaskStatus::Failure, err)
                         .await?;
-                    let _ = task_tx.send(model);
+                    let _ = self.task_tx.send(model);
                     continue 'main_loop;
                 }
             };
 
-            let _ = thumbnail_tx
+            let _ = self.thumbnail_tx
                 .send(ThumbnailTask {
                     mid: id,
-                    page_count,
+                    r#type: TaskType::Whole(page_count),
                 })
                 .await;
 
@@ -255,15 +267,15 @@ impl Dispatch {
             if let Err(err) = tokio::fs::rename(&cache_at.as_ref(), &storage_at.as_ref()).await {
                 eprintln!("failed");
                 let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
-                let model = repo
+                let model = self.repo
                     .update_task_status_with_reason(tid, TaskStatus::Failure, Error::from(err))
                     .await?;
-                let _ = task_tx.send(model);
+                let _ = self.task_tx.send(model);
                 continue 'main_loop;
             };
 
-            if let Ok(model) = repo.update_task_status(tid, TaskStatus::Success).await {
-                let _ = task_tx.send(model);
+            if let Ok(model) = self.repo.update_task_status(tid, TaskStatus::Success).await {
+                let _ = self.task_tx.send(model);
             };
         }
 

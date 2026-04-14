@@ -79,6 +79,8 @@ pub enum Error {
     InvalidImagePath(PathBuf),
     #[error("parse int error {0}")]
     ParseIntError(#[from] ParseIntError),
+    #[error("token permission denied")]
+    TokenPermissionDenied,
 }
 
 impl IntoResponse for Error {
@@ -116,7 +118,7 @@ impl IntoResponse for Error {
             | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Error::NotFound => StatusCode::NOT_FOUND,
             Error::BadRequestError(_) => StatusCode::BAD_REQUEST,
-            Error::ConfigPermissionDenied => StatusCode::FORBIDDEN,
+            Error::ConfigPermissionDenied | Error::TokenPermissionDenied => StatusCode::FORBIDDEN,
         };
 
         let body = ApiResp {

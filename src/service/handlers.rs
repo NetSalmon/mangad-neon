@@ -1,7 +1,94 @@
 use mangad_neon::core::entities::dao::ApiResp;
 use mangad_neon::error::Error;
+use serde::Deserialize;
 
 pub type ApiResult<T> = Result<ApiResp<T>, Error>;
+#[derive(Debug, Deserialize)]
+pub struct PagedQuery {
+    #[serde(default = "default_page_size")]
+    size: u64,
+    #[serde(default = "default_offset")]
+    offset: u64,
+}
+
+fn default_page_size() -> u64 { 50 }
+fn default_offset() -> u64 { 0 }
+
+macro_rules! delete {
+    ($entity:ident - $($key:ident : $t:ident),*$(,)?) => {
+        paste::paste! {
+            pub async fn [<delete_ $entity>](
+                State(state): State<Arc<AppState>>,
+                $(Path($key): Path<$t>,)*
+            ) -> ApiResult<$entity::Model> {
+                let active = $entity::ActiveModel {
+                    $($key: Set($key),)*
+                    ..Default::default()
+                };
+
+                let r = $entity::Entity::delete(active)
+                    .exec_with_returning(&state.worker.repo.db)
+                    .await?
+                    .ok_or(Error::NotFound)?;
+
+                Ok(r.into())
+            }
+        }
+    };
+}
+macro_rules! patch {
+    ($name:ident - $($f:ident : $t:ty),* $(,)?) => {
+        paste::paste! {
+            pub async fn [<patch_ $name>] (
+                State(state): State<Arc<AppState>>,
+                $(Path($f): Path<$t>,)*
+                Json(data): Json<active::[<$name:camel>]>,
+            ) -> ApiResult<$name::Model> {
+                let mut active = data.into_active_model();
+
+                $(active.$f = Set($f);)*
+
+                let result = $name::Entity::update(active)
+                    .exec(&state.worker.repo.db)
+                    .await?;
+                Ok(result.into())
+            }
+        }
+    };
+}
+
+macro_rules! select {
+    ($entity:ident - $($key:ident : $t:ident),*$(,)?) => {
+        paste::paste! {
+            pub async fn [<select_ $entity>](
+                State(state): State<Arc<AppState>>,
+                $(Path($key): Path<$t>,)*
+            ) -> ApiResult<$entity::Model> {
+                let result = $entity::Entity::find()
+                    $(
+                        .filter($entity::Column::[<$key:camel>].eq($key))
+                    )*
+                    .one(&state.worker.repo.db)
+                    .await?
+                    .ok_or(Error::NotFound)?;
+                Ok(result.into())
+            }
+        }
+    };
+}
+macro_rules! paged_select {
+    ($entity:ident) => {
+        paste::paste! {
+            pub async fn [<paged_select_ $entity>](
+                State(state): State<Arc<AppState>>,
+                Query(query): Query<PagedQuery>,
+            ) -> ApiResult<Vec<$entity::Model>> {
+                 let resp = state.worker.repo.[<list_ $entity>](query.size, query.offset).await?;
+                 Ok(resp.into())
+            }
+        }
+    };
+}
 
 pub mod basic {
     use crate::service::AppState;
@@ -45,23 +132,21 @@ pub mod basic {
 
 pub mod business {
     use crate::service::AppState;
-    use crate::service::handlers::ApiResult;
+    use crate::service::handlers::{ApiResult, PagedQuery};
     use axum::Json;
     use axum::extract::{Path, Query, State};
     use axum::response::Sse;
     use axum::response::sse::Event;
     use mangad_neon::core::entities::dao::active::IntoActiveModel;
     use mangad_neon::core::entities::dao::crawler::Task;
-    use mangad_neon::core::entities::dao::{
-        Document, FullData, InlineLiterature, InlineTag, SearchQuery, active,
-    };
+    use mangad_neon::core::entities::dao::{Document, FullData, SearchQuery, active};
     use mangad_neon::core::entities::inner::InnerTask;
     use mangad_neon::core::entities::orm::{
         literatures, metadata, tag_metadata, tags, tasks, tokens,
     };
+    use mangad_neon::core::repository;
     use mangad_neon::error::Error;
     use meilisearch_sdk::search::SearchResult;
-    use paste::paste;
     use sea_orm::entity::prelude::*;
     use sea_orm::{Set, TransactionTrait};
     use std::convert::Infallible;
@@ -83,42 +168,10 @@ pub mod business {
         Ok(id.into())
     }
 
-    macro_rules! patch {
-        ($name:ident, $path:path, [ $($f:ident : $t:ty),* ]) => {
-            paste! {
-                pub async fn [<patch_ $name>] (
-                    State(state): State<Arc<AppState>>,
-                    $(Path($f): Path<$t>,)*
-                    Json(data): Json<active::[<$name:camel>]>,
-                ) -> ApiResult<$path::Model> {
-                    let mut active = data.into_active_model();
-
-                    $(active.$f = Set($f);)*
-
-                    let result = $path::Entity::update(active)
-                        .exec(&state.worker.repo.db)
-                        .await?;
-                    Ok(result.into())
-                }
-            }
-        };
-    }
-
-    macro_rules! patch_many {
-        ($( $name:ident - [ $($f:ident : $t:ty),* $(,)? ] ),* $(,)?) => {
-            $(
-                patch!($name, mangad_neon::core::entities::orm::$name, [ $($f : $t),* ]);
-            )*
-        }
-    }
-
-    patch_many!(
-        tags - [id:i32],
-        tasks - [id:i32],
-        metadata - [id:i32],
-        tokens - [id:Uuid],
-        literatures - [id:i32]
-    );
+    patch!(tags - id:i32);
+    patch!(tasks - id:i32);
+    patch!(metadata - id:i32);
+    patch!(literatures - id:i32);
 
     pub async fn select_tags_by_id(
         State(state): State<Arc<AppState>>,
@@ -136,66 +189,11 @@ pub mod business {
     ) -> ApiResult<FullData> {
         let tx = state.worker.repo.db.begin().await?;
 
-        let m = metadata::Entity::find_by_id(id)
-            .one(&tx)
-            .await?
-            .ok_or(Error::NotFound)?;
-
-        let mt = tag_metadata::Entity::find()
-            .filter(tag_metadata::Column::MetadataId.eq(id))
-            .all(&tx)
-            .await?
-            .iter()
-            .map(|tag| tag.tag_id)
-            .collect::<Vec<i32>>();
-
-        let tags = tags::Entity::find()
-            .filter(tags::Column::Id.is_in(mt))
-            .all(&tx)
-            .await?
-            .into_iter()
-            .map(|t| t.into())
-            .collect::<Vec<InlineTag>>();
-
-        let literatures = literatures::Entity::find()
-            .filter(literatures::Column::MetadataId.eq(id))
-            .all(&tx)
-            .await?
-            .into_iter()
-            .map(|t| t.into())
-            .collect::<Vec<InlineLiterature>>();
+        let fin = repository::select_full_data_with_tx(id, &tx).await?;
 
         tx.commit().await?;
 
-        let fin = FullData {
-            id: m.id,
-            page_count: m.page_count,
-            upload: m.upload,
-            literatures,
-            tags,
-        };
-
         Ok(fin.into())
-    }
-
-    macro_rules! select {
-        ($entity:ident - $($key:ident : $t:ident),*$(,)?) => {
-            paste! {
-                pub async fn [<select_ $entity>](
-                    State(state): State<Arc<AppState>>,
-                    $(Path($key): Path<$t>,)*
-                ) -> ApiResult<$entity::Model> {
-                    let result = $entity::Entity::find()
-                        $(
-                            .filter($entity::Column::[<$key:camel>].eq($key))
-                        )*
-                        .one(&state.worker.repo.db)
-                        .await?
-                        .ok_or(Error::NotFound)?;
-                    Ok(result.into())
-                }
-            }
-        };
     }
 
     select!(tags - id:i32);
@@ -204,29 +202,6 @@ pub mod business {
     select!(tasks - id:i32);
     select!(literatures - id:i32);
     select!(tokens - id:Uuid);
-
-    macro_rules! delete {
-        ($entity:ident - $($key:ident : $t:ident),*$(,)?) => {
-            paste! {
-                pub async fn [<delete_ $entity>](
-                    State(state): State<Arc<AppState>>,
-                    $(Path($key): Path<$t>,)*
-                ) -> ApiResult<$entity::Model> {
-                    let active = $entity::ActiveModel {
-                        $($key: Set($key),)*
-                        ..Default::default()
-                    };
-
-                    let r = $entity::Entity::delete(active)
-                        .exec_with_returning(&state.worker.repo.db)
-                        .await?
-                        .ok_or(Error::NotFound)?;
-
-                    Ok(r.into())
-                }
-            }
-        };
-    }
 
     delete!(tags - id:i32);
     delete!(tag_metadata - tag_id:i32, metadata_id:i32);
@@ -300,6 +275,36 @@ pub mod business {
                 .interval(std::time::Duration::from_secs(15))
                 .text("keep-alive"),
         ))
+    }
+
+    pub async fn list_tags(
+        State(state): State<Arc<AppState>>,
+        Query(query): Query<PagedQuery>,
+    ) -> ApiResult<Vec<tags::Model>> {
+        let resp = state
+            .worker
+            .repo
+            .list_tags(query.size, query.offset)
+            .await?;
+        Ok(resp.into())
+    }
+
+    paged_select!(tags);
+    paged_select!(tag_metadata);
+    paged_select!(metadata);
+    paged_select!(tasks);
+    paged_select!(literatures);
+
+    pub async fn paged_select_full_data(
+        State(state): State<Arc<AppState>>,
+        Query(query): Query<PagedQuery>,
+    ) -> ApiResult<Vec<FullData>> {
+        let resp = state
+            .worker
+            .repo
+            .list_full_data(query.size, query.offset)
+            .await?;
+        Ok(resp.into())
     }
 }
 
@@ -405,7 +410,7 @@ pub mod configure {
 
     pub async fn select_config(State(state): State<Arc<AppState>>) -> ApiResult<Config> {
         let config = state.config.read().await.clone();
-        if !config.permissions.allow_remote_visit {
+        if !config.permissions.allow_config_remote_read {
             Err(Error::ConfigPermissionDenied)?;
         }
         Ok(config.into())
@@ -416,12 +421,156 @@ pub mod configure {
         Json(config): Json<Config>,
     ) -> ApiResult<bool> {
         let mut write = state.config.write().await;
-        if !write.permissions.allow_remote_visit {
+        if !write.permissions.allow_config_remote_write {
             Err(Error::ConfigPermissionDenied)?;
         }
         *write = config.clone();
         let content = toml::to_string_pretty(&config)?;
         tokio::fs::write(&*state.config_path, content).await?;
         Ok(true.into())
+    }
+}
+
+pub mod tokens {
+    use crate::service::AppState;
+    use crate::service::handlers::{ApiResult, PagedQuery};
+    use axum::Json;
+    use axum::extract::{Path, Query, State};
+    use mangad_neon::core::entities::dao::active;
+    use mangad_neon::core::entities::dao::active::IntoActiveModel;
+    use mangad_neon::core::entities::inner::ExpireTime;
+    use mangad_neon::core::entities::orm::tokens;
+    use mangad_neon::core::token::TokenTrait;
+    use mangad_neon::error::Error;
+    use sea_orm::{EntityTrait, Set};
+    use serde::Deserialize;
+    use std::sync::Arc;
+    use uuid::Uuid;
+
+    pub async fn list_tokens(
+        State(state): State<Arc<AppState>>,
+        Query(paged): Query<PagedQuery>,
+    ) -> ApiResult<Vec<tokens::Model>> {
+        if !state
+            .config
+            .read()
+            .await
+            .permissions
+            .allow_token_remote_read
+        {
+            return Err(Error::TokenPermissionDenied)?;
+        }
+        let resp = state
+            .worker
+            .repo
+            .list_tokens(paged.size, paged.offset)
+            .await?;
+
+        Ok(resp.into())
+    }
+
+    #[derive(Deserialize)]
+    pub struct CreateTokenBody {
+        #[serde(default)]
+        pub expire_time: ExpireTime,
+        pub remark: Option<String>,
+        pub description: Option<String>,
+    }
+
+    pub async fn create_token(
+        State(state): State<Arc<AppState>>,
+        Json(body): Json<CreateTokenBody>,
+    ) -> ApiResult<String> {
+        if !state
+            .config
+            .read()
+            .await
+            .permissions
+            .allow_token_remote_create
+        {
+            return Err(Error::TokenPermissionDenied)?;
+        }
+        let CreateTokenBody {
+            expire_time,
+            remark,
+            description,
+        } = body;
+        let (_, b) = state
+            .worker
+            .repo
+            .create_token(expire_time, remark, description)
+            .await?;
+        Ok(b.into())
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    #[serde(tag = "type")]
+    pub enum RevokeBody {
+        Uuid { data: Uuid },
+        Token { data: String },
+    }
+
+    impl TokenTrait for RevokeBody {
+        fn uuid(&self) -> Result<Uuid, Error> {
+            match self {
+                Self::Uuid { data } => Ok(data.clone()),
+                Self::Token { data } => data.uuid(),
+            }
+        }
+    }
+    pub async fn revoke_token(
+        State(state): State<Arc<AppState>>,
+        Json(revoke_body): Json<RevokeBody>,
+    ) -> ApiResult<()> {
+        if !state
+            .config
+            .read()
+            .await
+            .permissions
+            .allow_token_remote_revoke
+        {
+            return Err(Error::TokenPermissionDenied)?;
+        }
+
+        state.worker.repo.revoke_token(&revoke_body.uuid()?).await?;
+
+        Ok(().into())
+    }
+
+    pub async fn select_tokens(
+        State(state): State<Arc<AppState>>,
+        Path(id): Path<Uuid>,
+    ) -> ApiResult<tokens::Model> {
+        let r = tokens::Entity::find_by_id(id)
+            .one(&state.worker.repo.db)
+            .await?
+            .ok_or(Error::NotFound)?;
+
+        Ok(r.into())
+    }
+
+    pub async fn patch_tokens(
+        State(state): State<Arc<AppState>>,
+        Path(id): Path<Uuid>,
+        Json(data): Json<active::Tokens>,
+    ) -> ApiResult<tokens::Model> {
+        if !state
+            .config
+            .read()
+            .await
+            .permissions
+            .allow_token_remote_modify
+        {
+            return Err(Error::TokenPermissionDenied)?;
+        }
+        let mut active = data.into_active_model();
+
+        active.id = Set(id);
+
+        let result = tokens::Entity::update(active)
+            .exec(&state.worker.repo.db)
+            .await?;
+        Ok(result.into())
     }
 }

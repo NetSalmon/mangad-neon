@@ -5,7 +5,7 @@ pub mod worker;
 use crate::service::worker::{Worker, WorkerHandler};
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::{get, patch, post};
-use mangad_neon::core::config::Config;
+use mangad_neon::core::config::{Config};
 use mangad_neon::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -38,14 +38,21 @@ pub async fn service(config: Config, path: PathBuf) -> Result<(), Error> {
     let public_routes = axum::Router::new()
         .route("/health", get(handlers::basic::health))
         .route("/tasks/{id}", get(handlers::business::select_tasks))
-        .route("/tasks", get(handlers::business::task_notice))
+        .route("/notice", get(handlers::business::task_notice))
+        .route("/tasks", get(handlers::business::paged_select_tasks))
+        .route("/tags", get(handlers::business::paged_select_tags))
+        .route("/metadata", get(handlers::business::paged_select_metadata))
+        .route(
+            "/literatures",
+            get(handlers::business::paged_select_literatures),
+        )
+        .route("/mangas", get(handlers::business::paged_select_full_data))
         .route(
             "/literatures/{id}",
             get(handlers::business::select_literatures),
         )
         .route("/tags/{id}", get(handlers::business::select_tags))
         .route("/metadata/{id}", get(handlers::business::select_metadata))
-        .route("/tokens/{id}", get(handlers::business::select_tokens))
         .route(
             "/manga/{id}",
             get(handlers::business::select_full_data_by_id),
@@ -78,10 +85,19 @@ pub async fn service(config: Config, path: PathBuf) -> Result<(), Error> {
             "/metadata/{id}",
             patch(handlers::business::patch_metadata).delete(handlers::business::delete_metadata),
         )
-        .route("/tokens/{id}", patch(handlers::business::patch_tokens))
         .route(
             "/config",
             get(handlers::configure::select_config).post(handlers::configure::update_config),
+        )
+        .route(
+            "/tokens",
+            post(handlers::tokens::create_token)
+                .get(handlers::tokens::list_tokens)
+                .patch(handlers::tokens::revoke_token),
+        )
+        .route(
+            "/tokens/{id}",
+            get(handlers::tokens::select_tokens).patch(handlers::tokens::patch_tokens),
         )
         .layer(from_fn_with_state(state.clone(), middleware::authorization));
 

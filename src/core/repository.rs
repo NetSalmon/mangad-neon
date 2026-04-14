@@ -1,5 +1,6 @@
 use crate::core::config::Config;
 use crate::core::entities::dao::crawler::{Literature, Tag, Task};
+use crate::core::entities::dao::{FullData, InlineLiterature, InlineTag};
 use crate::core::entities::inner::ExpireTime;
 use crate::core::entities::orm::prelude::Tasks;
 use crate::core::entities::orm::sea_orm_active_enums::TaskStatus;
@@ -349,12 +350,12 @@ macro_rules! list {
         paste! {
             pub async fn [<list_ $name>] (
                 &self,
-                page_size: u64,
-                page_number: u64,
+                size: u64,
+                offset: u64,
             ) -> Result<Vec<$path::Model>, Error> {
                 let models = $path::Entity::find()
-                    .paginate(&self.db, page_size)
-                    .fetch_page(page_number)
+                    .paginate(&self.db, size)
+                    .fetch_page(offset)
                     .await?;
 
                 Ok(models)
@@ -370,4 +371,67 @@ impl Repository {
     list!(tokens, tokens);
     list!(metadata, metadata);
     list!(tasks, tasks);
+    pub async fn list_full_data(&self, size: u64, offset: u64) -> Result<Vec<FullData>, Error> {
+        let tx = self.db.begin().await?;
+        let ids = metadata::Entity::find()
+            .paginate(&tx, size)
+            .fetch_page(offset)
+            .await?
+            .into_iter()
+            .map(|m| m.id)
+            .collect::<Vec<i32>>();
+
+        let mut data: Vec<FullData> = Vec::with_capacity(ids.len());
+
+        for (i, id) in ids.into_iter().enumerate() {
+            data[i] = select_full_data_with_tx(id, &tx).await?;
+        }
+
+        tx.commit().await?;
+
+        Ok(data)
+    }
+}
+
+pub async fn select_full_data_with_tx(
+    id: i32,
+    tx: &DatabaseTransaction,
+) -> Result<FullData, Error> {
+    let m = metadata::Entity::find_by_id(id)
+        .one(tx)
+        .await?
+        .ok_or(Error::NotFound)?;
+
+    let mt = tag_metadata::Entity::find()
+        .filter(tag_metadata::Column::MetadataId.eq(id))
+        .all(tx)
+        .await?
+        .iter()
+        .map(|tag| tag.tag_id)
+        .collect::<Vec<i32>>();
+
+    let tags = tags::Entity::find()
+        .filter(tags::Column::Id.is_in(mt))
+        .all(tx)
+        .await?
+        .into_iter()
+        .map(|t| t.into())
+        .collect::<Vec<InlineTag>>();
+
+    let literatures = literatures::Entity::find()
+        .filter(literatures::Column::MetadataId.eq(id))
+        .all(tx)
+        .await?
+        .into_iter()
+        .map(|t| t.into())
+        .collect::<Vec<InlineLiterature>>();
+
+    let fin = FullData {
+        id: m.id,
+        page_count: m.page_count,
+        upload: m.upload,
+        literatures,
+        tags,
+    };
+    Ok(fin)
 }

@@ -88,8 +88,8 @@ pub enum TokenAction {
         #[arg(short = 's', long = "size", default_value = "20")]
         size: u64,
         /// 页数
-        #[arg(short = 'n', long = "number", default_value = "0")]
-        number: u64,
+        #[arg(short = 'n', long = "offset", default_value = "0")]
+        offset: u64,
     },
 }
 
@@ -108,14 +108,11 @@ pub fn to_expire_time(s: &str) -> ExpireTime {
 pub async fn main() -> Result<(), Error> {
     let cli = Cli::parse();
 
-    // 初始化日志：命令行参数 > 环境变量 > 默认 error
     let log_level = cli.log_level.clone().unwrap_or_else(|| {
         std::env::var("MANGAD_LOG_LEVEL").unwrap_or_else(|_| "error".to_string())
     });
 
-    log::init(&LogConfig {
-        level: Some(log_level),
-    });
+    log::init(&LogConfig { level: log_level });
 
     let config = init_config();
 
@@ -169,7 +166,10 @@ pub async fn main() -> Result<(), Error> {
                 }
             }
 
-            TokenAction::List { size, number } => {
+            TokenAction::List {
+                size,
+                offset: number,
+            } => {
                 let tokens = repo.list_tokens(size, number).await?;
                 println!(
                     "┌{}┬{}┬{}┬{}┬{}┬{}┐",

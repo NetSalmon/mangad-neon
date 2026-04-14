@@ -31,6 +31,12 @@ pub enum ExpireTime {
     Permanent,
 }
 
+impl Default for ExpireTime {
+    fn default() -> Self {
+        ExpireTime::Long
+    }
+}
+
 impl ExpireTime {
     pub fn to_duration(&self) -> Option<chrono::Duration> {
         match self {

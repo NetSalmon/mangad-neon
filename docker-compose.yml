@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  database:
+    image: postgres:latest
+    container_name: mangad-neon-postgres
+    environment:
+      POSTGRES_PASSWORD: 081525
+      POSTGRES_DB: mangad_neon
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+
+  searching:
+    image: getmeili/meilisearch:latest
+    container_name: mangad-neon-meilisearch
+    ports:
+      - "7700:7700"
+    restart: always

@@ -33,5 +33,5 @@ else
 fi
 
 echo "${PG_DB} migrating..."
-psql -h "$PG_HOST" -U "$PG_USER" -d "$PG_DB" -f ./migrate.sql
+psql -h "$PG_HOST" -U "$PG_USER" -d "$PG_DB" -f ./init/init.sql
 echo "all done"

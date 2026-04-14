@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="com.github.blarc.ai.commits.intellij.plugin.settings.ProjectSettings" isProjectSpecificLLMClient="true">
+  <component name="com.github.blarc.ai.commits.intellij.plugin.settings.ProjectSettings" activeLlmClientId="ea00ec08-2c3b-4777-8b3f-0b23cd35aa99" isProjectSpecificLLMClient="true">
     <option name="projectSpecificLLMClient" value="true" />
-    <option name="splitButtonActionSelectedLLMClientId" value="ee19c91a-d42a-4481-91af-727243420ffe" />
+    <option name="splitButtonActionSelectedLLMClientId" value="ea00ec08-2c3b-4777-8b3f-0b23cd35aa99" />
   </component>
 </project>

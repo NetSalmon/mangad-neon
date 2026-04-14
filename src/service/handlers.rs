@@ -11,8 +11,12 @@ pub struct PagedQuery {
     offset: u64,
 }
 
-fn default_page_size() -> u64 { 50 }
-fn default_offset() -> u64 { 0 }
+fn default_page_size() -> u64 {
+    50
+}
+fn default_offset() -> u64 {
+    0
+}
 
 macro_rules! delete {
     ($entity:ident - $($key:ident : $t:ident),*$(,)?) => {

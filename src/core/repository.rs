@@ -399,7 +399,7 @@ pub async fn select_full_data_with_tx(
     tx: &DatabaseTransaction,
 ) -> Result<FullData, Error> {
     tracing::debug!("select full data with {}", id);
-    
+
     let m = metadata::Entity::find_by_id(id)
         .one(tx)
         .await?

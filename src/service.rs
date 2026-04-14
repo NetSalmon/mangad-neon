@@ -5,7 +5,7 @@ pub mod worker;
 use crate::service::worker::{Worker, WorkerHandler};
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::{get, patch, post};
-use mangad_neon::core::config::{Config};
+use mangad_neon::core::config::Config;
 use mangad_neon::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;

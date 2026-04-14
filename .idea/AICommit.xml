@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="com.github.blarc.ai.commits.intellij.plugin.settings.ProjectSettings" isProjectSpecificLLMClient="true">
+    <option name="projectSpecificLLMClient" value="true" />
+    <option name="splitButtonActionSelectedLLMClientId" value="ee19c91a-d42a-4481-91af-727243420ffe" />
+  </component>
+</project>

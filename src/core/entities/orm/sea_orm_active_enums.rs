@@ -14,8 +14,8 @@ pub enum TagType {
     Origin,
     #[sea_orm(string_value = "serial")]
     Serial,
-    #[sea_orm(string_value = "chara")]
-    Chara,
+    #[sea_orm(string_value = "character")]
+    Character,
     #[sea_orm(string_value = "lang")]
     Lang,
     #[sea_orm(string_value = "group")]

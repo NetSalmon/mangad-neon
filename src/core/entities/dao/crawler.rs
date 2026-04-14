@@ -26,7 +26,7 @@ impl TagType {
             TagType::Artist => ORMTagType::Artist,
             TagType::Origin => ORMTagType::Origin,
             TagType::Serial => ORMTagType::Serial,
-            TagType::Chara => ORMTagType::Chara,
+            TagType::Chara => ORMTagType::Character,
             TagType::Lang => ORMTagType::Lang,
             TagType::Group => ORMTagType::Group,
         }
@@ -38,7 +38,7 @@ impl TagType {
             ORMTagType::Artist => TagType::Artist,
             ORMTagType::Origin => TagType::Origin,
             ORMTagType::Serial => TagType::Serial,
-            ORMTagType::Chara => TagType::Chara,
+            ORMTagType::Character => TagType::Chara,
             ORMTagType::Lang => TagType::Lang,
             ORMTagType::Group => TagType::Group,
         }

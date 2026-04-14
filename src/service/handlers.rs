@@ -189,7 +189,11 @@ pub mod business {
     ) -> ApiResult<FullData> {
         let tx = state.worker.repo.db.begin().await?;
 
+        tracing::debug!("starting select full data {}", id);
+
         let fin = repository::select_full_data_with_tx(id, &tx).await?;
+
+        tracing::debug!("starting select full data {} ok", id);
 
         tx.commit().await?;
 

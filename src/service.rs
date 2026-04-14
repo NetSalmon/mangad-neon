@@ -54,7 +54,7 @@ pub async fn service(config: Config, path: PathBuf) -> Result<(), Error> {
         .route("/tags/{id}", get(handlers::business::select_tags))
         .route("/metadata/{id}", get(handlers::business::select_metadata))
         .route(
-            "/manga/{id}",
+            "/mangas/{id}",
             get(handlers::business::select_full_data_by_id),
         )
         .route("/search", get(handlers::business::searching))

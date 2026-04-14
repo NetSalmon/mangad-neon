@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use sea_orm::prelude::DateTimeWithTimeZone;
 use serde::{Deserialize, Serialize};
+use sqlx_core::types::Decimal;
 
 pub mod active;
 pub mod crawler;
@@ -93,6 +94,7 @@ impl<T: Serialize> From<(StatusCode, T)> for ApiResp<T> {
 pub struct FullData {
     pub id: i32,
     pub page_count: i32,
+    pub rating: Decimal,
     pub upload: DateTimeWithTimeZone,
     pub literatures: Vec<InlineLiterature>,
     pub tags: Vec<InlineTag>,
@@ -111,7 +113,7 @@ pub struct InlineTag {
     pub id: i32,
     pub r#type: TagType,
     pub label: String,
-    pub ref_count: i32,
+    pub weight: i32,
 }
 
 impl From<literatures::Model> for InlineLiterature {
@@ -131,7 +133,18 @@ impl From<tags::Model> for InlineTag {
             id: t.id,
             r#type: t.r#type.into(),
             label: t.label,
-            ref_count: t.ref_count,
+            weight: Default::default(),
+        }
+    }
+}
+
+impl From<(tags::Model, i32)> for InlineTag {
+    fn from((t, w): (tags::Model, i32)) -> InlineTag {
+        InlineTag {
+            id: t.id,
+            r#type: t.r#type.into(),
+            label: t.label,
+            weight: w,
         }
     }
 }
@@ -167,7 +180,7 @@ impl From<(literatures::Model, Vec<tags::Model>)> for Document {
                 sea_orm_active_enums::TagType::Artist => &mut artists,
                 sea_orm_active_enums::TagType::Origin => &mut origins,
                 sea_orm_active_enums::TagType::Serial => &mut serials,
-                sea_orm_active_enums::TagType::Chara => &mut characters,
+                sea_orm_active_enums::TagType::Character => &mut characters,
                 sea_orm_active_enums::TagType::Lang => &mut languages,
                 sea_orm_active_enums::TagType::Group => &mut groups,
             };

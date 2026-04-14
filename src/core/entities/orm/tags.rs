@@ -13,7 +13,6 @@ pub struct Model {
     #[sea_orm(column_type = "Text")]
     pub label: String,
     pub canonical_id: Option<i32>,
-    pub ref_count: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -25,7 +24,7 @@ pub enum Relation {
         from = "Column::CanonicalId",
         to = "Column::Id",
         on_update = "NoAction",
-        on_delete = "Cascade"
+        on_delete = "SetDefault"
     )]
     SelfRef,
 }

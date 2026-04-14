@@ -10,6 +10,8 @@ pub struct Model {
     pub id: i32,
     pub page_count: i32,
     pub upload: DateTimeWithTimeZone,
+    #[sea_orm(column_type = "Decimal(Some((3, 1)))")]
+    pub rating: Decimal,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

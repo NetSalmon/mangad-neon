@@ -154,6 +154,7 @@ impl Repository {
             .map(|tag| tag_metadata::ActiveModel {
                 metadata_id: Set(mid),
                 tag_id: Set(tag.id),
+                weight: Default::default(),
             })
             .collect();
         let resp = tag_metadata::Entity::insert_many(active_models)
@@ -384,7 +385,7 @@ impl Repository {
         let mut data: Vec<FullData> = Vec::with_capacity(ids.len());
 
         for (i, id) in ids.into_iter().enumerate() {
-            data[i] = select_full_data_with_tx(id, &tx).await?;
+            data.insert(i, select_full_data_with_tx(id, &tx).await?);
         }
 
         tx.commit().await?;
@@ -397,24 +398,27 @@ pub async fn select_full_data_with_tx(
     id: i32,
     tx: &DatabaseTransaction,
 ) -> Result<FullData, Error> {
+    tracing::debug!("select full data with {}", id);
+    
     let m = metadata::Entity::find_by_id(id)
         .one(tx)
         .await?
         .ok_or(Error::NotFound)?;
 
-    let mt = tag_metadata::Entity::find()
+    let (mt, weights): (Vec<i32>, Vec<i32>) = tag_metadata::Entity::find()
         .filter(tag_metadata::Column::MetadataId.eq(id))
         .all(tx)
         .await?
-        .iter()
-        .map(|tag| tag.tag_id)
-        .collect::<Vec<i32>>();
+        .into_iter()
+        .map(|tag| (tag.tag_id, tag.weight))
+        .unzip();
 
     let tags = tags::Entity::find()
         .filter(tags::Column::Id.is_in(mt))
         .all(tx)
         .await?
         .into_iter()
+        .zip(weights)
         .map(|t| t.into())
         .collect::<Vec<InlineTag>>();
 
@@ -428,10 +432,12 @@ pub async fn select_full_data_with_tx(
 
     let fin = FullData {
         id: m.id,
+        rating: m.rating,
         page_count: m.page_count,
         upload: m.upload,
         literatures,
         tags,
     };
+
     Ok(fin)
 }

@@ -2,7 +2,7 @@ use crate::core::entities::orm::{
     literatures, metadata, sea_orm_active_enums, tag_metadata, tags, tasks, tokens,
 };
 use sea_orm::ActiveModelTrait;
-use sea_orm::prelude::{DateTimeWithTimeZone, Json};
+use sea_orm::prelude::{DateTimeWithTimeZone, Decimal, Json};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -56,12 +56,14 @@ pub struct Metadata {
     pub id: Option<i32>,
     pub page_count: Option<i32>,
     pub upload: Option<DateTimeWithTimeZone>,
+    pub rating: Option<Decimal>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TagMetadata {
     pub metadata_id: Option<i32>,
     pub tag_id: Option<i32>,
+    pub weight: Option<i32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -70,7 +72,6 @@ pub struct Tags {
     pub r#type: Option<TagType>,
     pub label: Option<String>,
     pub canonical_id: Option<Option<i32>>,
-    pub ref_count: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,7 +81,7 @@ pub enum TagType {
     Artist,
     Origin,
     Serial,
-    Chara,
+    Character,
     Lang,
     Group,
 }
@@ -119,7 +120,7 @@ impl From<sea_orm_active_enums::TagType> for TagType {
             sea_orm_active_enums::TagType::Artist => TagType::Artist,
             sea_orm_active_enums::TagType::Origin => TagType::Origin,
             sea_orm_active_enums::TagType::Serial => TagType::Serial,
-            sea_orm_active_enums::TagType::Chara => TagType::Chara,
+            sea_orm_active_enums::TagType::Character => TagType::Character,
             sea_orm_active_enums::TagType::Lang => TagType::Lang,
             sea_orm_active_enums::TagType::Group => TagType::Group,
         }
@@ -133,7 +134,7 @@ impl From<TagType> for sea_orm_active_enums::TagType {
             TagType::Artist => sea_orm_active_enums::TagType::Artist,
             TagType::Origin => sea_orm_active_enums::TagType::Origin,
             TagType::Serial => sea_orm_active_enums::TagType::Serial,
-            TagType::Chara => sea_orm_active_enums::TagType::Chara,
+            TagType::Character => sea_orm_active_enums::TagType::Character,
             TagType::Lang => sea_orm_active_enums::TagType::Lang,
             TagType::Group => sea_orm_active_enums::TagType::Group,
         }
@@ -177,6 +178,7 @@ set!(Metadata => metadata::ActiveModel {
     id,
     page_count,
     upload,
+    rating,
 });
 
 set!(Literatures => literatures::ActiveModel {
@@ -190,6 +192,7 @@ set!(Literatures => literatures::ActiveModel {
 set!(TagMetadata => tag_metadata::ActiveModel {
     metadata_id,
     tag_id,
+    weight,
 });
 
 set!(Tags => tags::ActiveModel {
@@ -197,7 +200,6 @@ set!(Tags => tags::ActiveModel {
     r#type: enum sea_orm_active_enums::TagType,
     label,
     canonical_id,
-    ref_count,
 });
 
 // Tasks

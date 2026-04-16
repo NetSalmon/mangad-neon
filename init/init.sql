@@ -155,8 +155,13 @@ CREATE OR REPLACE FUNCTION fn_literatures_modify_notice()
 AS
 $$
 BEGIN
-    PERFORM pg_notify('literatures', CAST(NEW.id AS TEXT));
-    RETURN NEW;
+    IF (TG_OP = 'DELETE') THEN
+        PERFORM pg_notify('literatures', CAST(OLD.metadata_id AS TEXT));
+        RETURN OLD;
+    ELSE
+        PERFORM pg_notify('literatures', CAST(NEW.metadata_id AS TEXT));
+        RETURN NEW;
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -171,8 +176,13 @@ CREATE OR REPLACE FUNCTION fn_tags_modify_notice()
 AS
 $$
 BEGIN
-    PERFORM pg_notify('tags', CAST(NEW.id AS TEXT));
-    RETURN NEW;
+    IF (TG_OP = 'DELETE') THEN
+        PERFORM pg_notify('tags', CAST(OLD.id AS TEXT));
+        RETURN OLD;
+    ELSE
+        PERFORM pg_notify('tags', CAST(NEW.id AS TEXT));
+        RETURN NEW;
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -187,8 +197,13 @@ CREATE OR REPLACE FUNCTION fn_tag_metadata_modify_notice()
 AS
 $$
 BEGIN
-    PERFORM pg_notify('tag_metadata', CAST(NEW.metadata_id AS TEXT));
-    RETURN NEW;
+    IF (TG_OP = 'DELETE') THEN
+        PERFORM pg_notify('tag_metadata', CAST(OLD.metadata_id AS TEXT));
+        RETURN OLD;
+    ELSE
+        PERFORM pg_notify('tag_metadata', CAST(NEW.metadata_id AS TEXT));
+        RETURN NEW;
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 

@@ -1,8 +1,8 @@
+use crate::models::error::AppError;
 use mangad_neon::core::entities::dao::ApiResp;
-use mangad_neon::error::Error;
 use serde::Deserialize;
 
-pub type ApiResult<T> = Result<ApiResp<T>, Error>;
+pub type ApiResult<T> = Result<ApiResp<T>, AppError>;
 #[derive(Debug, Deserialize)]
 pub struct PagedQuery {
     #[serde(default = "default_page_size")]
@@ -94,8 +94,8 @@ macro_rules! paged_select {
 }
 
 pub mod basic {
-    use crate::service::AppState;
     use crate::service::handlers::ApiResult;
+    use crate::service::AppState;
     use axum::extract::State;
     use serde::Serialize;
     use std::sync::Arc;
@@ -134,16 +134,17 @@ pub mod basic {
 }
 
 pub mod business {
-    use crate::service::AppState;
+    use crate::models::error::AppError;
+    use crate::models::tasks::ReturningTask;
     use crate::service::handlers::{ApiResult, PagedQuery};
-    use axum::Json;
+    use crate::service::AppState;
     use axum::extract::{Path, Query, State};
-    use axum::response::Sse;
     use axum::response::sse::Event;
-    use mangad_neon::core::entities::dao::active::IntoActiveModel;
+    use axum::response::Sse;
+    use axum::Json;
+    use crate::models::active::IntoActiveModel;
     use mangad_neon::core::entities::dao::crawler::Task;
-    use mangad_neon::core::entities::dao::{Document, FullData, SearchQuery, active};
-    use mangad_neon::core::entities::inner::ReturningTask;
+    use mangad_neon::core::entities::dao::{Document, FullData, SearchQuery};
     use mangad_neon::core::entities::orm::{
         literatures, metadata, tag_metadata, tags, tasks, tokens,
     };
@@ -156,6 +157,7 @@ pub mod business {
     use std::sync::Arc;
     use tokio::sync::oneshot;
     use tokio_stream::Stream;
+    use crate::models::active;
 
     pub async fn add_tasks(
         State(state): State<Arc<AppState>>,
@@ -253,7 +255,7 @@ pub mod business {
                     .hits
             }
             (None, None) => {
-                return Err(Error::BadRequestError("need query".to_string()));
+                return Err(AppError::BadRequestError("need query".to_string()));
             }
         };
 
@@ -262,7 +264,7 @@ pub mod business {
 
     pub async fn task_notice(
         State(state): State<Arc<AppState>>,
-    ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, Error> {
+    ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
         let mut task_rx = state.worker.task_tx.subscribe();
         let mut sub_task_rx = state.worker.sub_task_tx.subscribe();
 
@@ -322,14 +324,14 @@ pub mod resource {
     use axum::body::Body;
     use axum::extract::{Path, State};
     use axum::response::Response;
-    use mangad_neon::error::Error;
     use std::sync::Arc;
     use tokio::fs::File;
+    use crate::models::error::AppError;
 
     pub async fn images(
         State(state): State<Arc<AppState>>,
         Path((mid, index)): Path<(i32, i32)>,
-    ) -> Result<Response<Body>, Error> {
+    ) -> Result<Response<Body>, AppError> {
         let dir = format!("{:0>10}", mid);
         let file = format!("{:0>10}.webp", index);
 
@@ -357,7 +359,7 @@ pub mod resource {
     pub async fn thumbnails(
         State(state): State<Arc<AppState>>,
         Path((mid, index)): Path<(i32, i32)>,
-    ) -> Result<Response<Body>, Error> {
+    ) -> Result<Response<Body>, AppError> {
         let dir = format!("{:0>10}", mid);
         let file = format!("{:0>10}.webp", index);
 
@@ -407,18 +409,18 @@ pub mod resource {
 }
 
 pub mod configure {
-    use crate::service::AppState;
     use crate::service::handlers::ApiResult;
-    use axum::Json;
+    use crate::service::AppState;
     use axum::extract::State;
+    use axum::Json;
     use mangad_neon::core::config::Config;
-    use mangad_neon::error::Error;
     use std::sync::Arc;
+    use crate::models::error::AppError;
 
     pub async fn select_config(State(state): State<Arc<AppState>>) -> ApiResult<Config> {
         let config = state.config.read().await.clone();
         if !config.permissions.allow_config_remote_read {
-            Err(Error::ConfigPermissionDenied)?;
+            Err(AppError::ConfigPermissionDenied)?;
         }
         Ok(config.into())
     }
@@ -429,7 +431,7 @@ pub mod configure {
     ) -> ApiResult<bool> {
         let mut write = state.config.write().await;
         if !write.permissions.allow_config_remote_write {
-            Err(Error::ConfigPermissionDenied)?;
+            Err(AppError::ConfigPermissionDenied)?;
         }
         *write = config.clone();
         let content = toml::to_string_pretty(&config)?;
@@ -439,12 +441,12 @@ pub mod configure {
 }
 
 pub mod tokens {
-    use crate::service::AppState;
     use crate::service::handlers::{ApiResult, PagedQuery};
-    use axum::Json;
+    use crate::service::AppState;
     use axum::extract::{Path, Query, State};
-    use mangad_neon::core::entities::dao::active;
-    use mangad_neon::core::entities::dao::active::IntoActiveModel;
+    use axum::Json;
+    use crate::models::active;
+    use crate::models::active::IntoActiveModel;
     use mangad_neon::core::entities::inner::ExpireTime;
     use mangad_neon::core::entities::orm::tokens;
     use mangad_neon::core::token::TokenTrait;
@@ -453,6 +455,7 @@ pub mod tokens {
     use serde::Deserialize;
     use std::sync::Arc;
     use uuid::Uuid;
+    use crate::models::error::AppError;
 
     pub async fn list_tokens(
         State(state): State<Arc<AppState>>,
@@ -465,7 +468,7 @@ pub mod tokens {
             .permissions
             .allow_token_remote_read
         {
-            return Err(Error::TokenPermissionDenied)?;
+            return Err(AppError::TokenPermissionDenied)?;
         }
         let resp = state
             .worker
@@ -495,7 +498,7 @@ pub mod tokens {
             .permissions
             .allow_token_remote_create
         {
-            return Err(Error::TokenPermissionDenied)?;
+            return Err(AppError::TokenPermissionDenied)?;
         }
         let CreateTokenBody {
             expire_time,
@@ -537,7 +540,7 @@ pub mod tokens {
             .permissions
             .allow_token_remote_revoke
         {
-            return Err(Error::TokenPermissionDenied)?;
+            return Err(AppError::TokenPermissionDenied)?;
         }
 
         state.worker.repo.revoke_token(&revoke_body.uuid()?).await?;
@@ -569,7 +572,7 @@ pub mod tokens {
             .permissions
             .allow_token_remote_modify
         {
-            return Err(Error::TokenPermissionDenied)?;
+            return Err(AppError::TokenPermissionDenied)?;
         }
         let mut active = data.into_active_model();
 

@@ -6,11 +6,11 @@ use crate::service::worker::{Worker, WorkerHandler};
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::{get, patch, post};
 use mangad_neon::core::config::Config;
-use mangad_neon::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use crate::models::error::AppError;
 
 pub struct AppState {
     pub config: Arc<RwLock<Config>>,
@@ -18,7 +18,7 @@ pub struct AppState {
     pub worker: Arc<WorkerHandler>,
 }
 
-pub async fn service(config: Config, path: PathBuf) -> Result<(), Error> {
+pub async fn service(config: Config, path: PathBuf) -> Result<(), AppError> {
     tracing::info!("Starting service on {}", config.service.net.host);
     let wrapping_config = Arc::new(config.clone());
     tracing::info!("Database and Search index connected");

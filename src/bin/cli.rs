@@ -4,7 +4,6 @@ use mangad_neon::core::config::LogConfig;
 use mangad_neon::core::entities::inner::ExpireTime;
 use mangad_neon::core::init::init_config;
 use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
-use mangad_neon::error::Error;
 use mangad_neon::log;
 use uuid::Uuid;
 
@@ -104,8 +103,16 @@ pub fn to_expire_time(s: &str) -> ExpireTime {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum AppError {
+    #[error(transparent)]
+    MangadError(#[from] mangad_neon::error::Error),
+    #[error("{0}")]
+    CustomError(String),
+}
+
 #[tokio::main]
-pub async fn main() -> Result<(), Error> {
+pub async fn main() -> Result<(), AppError> {
     let cli = Cli::parse();
 
     let log_level = cli.log_level.clone().unwrap_or_else(|| {
@@ -120,7 +127,7 @@ pub async fn main() -> Result<(), Error> {
         (_, Some(database_url)) => Repository::new(&database_url).await?,
         (Ok((_, database_url)), None) => Repository::new(&database_url.to_database_url()).await?,
         _ => {
-            return Err(Error::CustomError("No Database URL provided".into()));
+            return Err(AppError::CustomError("No Database URL provided".to_string()));
         }
     };
 

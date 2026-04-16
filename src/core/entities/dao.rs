@@ -1,13 +1,12 @@
-use crate::core::entities::dao::active::TagType;
-use crate::core::entities::orm::{literatures, sea_orm_active_enums, tags};
-use axum::Json;
+use crate::core::entities::orm::sea_orm_active_enums::TagType;
+use crate::core::entities::orm::{literatures, tags};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use sea_orm::prelude::DateTimeWithTimeZone;
 use serde::{Deserialize, Serialize};
 use sqlx_core::types::Decimal;
 
-pub mod active;
 pub mod crawler;
 
 #[derive(Debug, Clone, Serialize)]
@@ -176,13 +175,13 @@ impl From<(literatures::Model, Vec<tags::Model>)> for Document {
 
         for tag in tags {
             let list = match tag.r#type {
-                sea_orm_active_enums::TagType::Genre => &mut genres,
-                sea_orm_active_enums::TagType::Artist => &mut artists,
-                sea_orm_active_enums::TagType::Origin => &mut origins,
-                sea_orm_active_enums::TagType::Serial => &mut serials,
-                sea_orm_active_enums::TagType::Character => &mut characters,
-                sea_orm_active_enums::TagType::Lang => &mut languages,
-                sea_orm_active_enums::TagType::Group => &mut groups,
+                TagType::Genre => &mut genres,
+                TagType::Artist => &mut artists,
+                TagType::Origin => &mut origins,
+                TagType::Serial => &mut serials,
+                TagType::Character => &mut characters,
+                TagType::Lang => &mut languages,
+                TagType::Group => &mut groups,
             };
 
             list.push(tag.label.to_string());

@@ -1,13 +1,13 @@
 use mangad_neon::core::config::Config;
 use mangad_neon::core::entities::dao::Document;
 use mangad_neon::core::repository::Repository;
-use mangad_neon::error::Error;
 use meilisearch_sdk::client::Client;
 use meilisearch_sdk::indexes::Index;
 use sea_orm::sqlx::postgres::PgListener;
 use std::sync::Arc;
+use crate::models::error::AppError;
 
-pub async fn index(config: Arc<Config>) -> Result<Index, Error> {
+pub async fn index(config: Arc<Config>) -> Result<Index, AppError> {
     let client = Client::new(&config.search.host, config.search.api_key.clone())?;
     let index = client.index("mangas");
     index
@@ -28,7 +28,7 @@ pub async fn index(config: Arc<Config>) -> Result<Index, Error> {
     Ok(index)
 }
 
-pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), Error> {
+pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), AppError> {
     let inner_pool = repo.db.get_postgres_connection_pool();
     let mut listener = PgListener::connect_with(inner_pool).await?;
     listener
@@ -38,12 +38,12 @@ pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), Error>
     while let Ok(r) = listener.recv().await {
         let channel = r.channel();
         let payload = r.payload();
-        let res: Result<(), Error> = async {
+        let res: Result<(), AppError> = async {
             match channel {
                 "literatures" | "tag_metadata" => {
                     let id: i32 = payload
                         .parse()
-                        .map_err(|_| Error::CustomError("string parse to int error"))?;
+                        .map_err(|_| AppError::CustomError("string parse to int error".to_string()))?;
                     let (literatures, tags) = repo.select_literatures_and_tags(id).await?;
                     let docs: Vec<Document> = literatures
                         .into_iter()
@@ -55,7 +55,7 @@ pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), Error>
                 "tags" => {
                     let id: i32 = payload
                         .parse()
-                        .map_err(|_| Error::CustomError("string parse to int error"))?;
+                        .map_err(|_| AppError::CustomError("string parse to int error".to_string()))?;
 
                     let ids = repo.select_metadata_id_by_tag_id(id).await?;
                     let mut docs: Vec<Document> = vec![];
@@ -69,7 +69,7 @@ pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), Error>
                     index.add_documents(&docs, Some("id")).await?;
                 }
                 _ => {
-                    return Err(Error::CustomError("channel not support"));
+                    return Err(AppError::CustomError("channel not support".to_string()));
                 }
             }
             Ok(())

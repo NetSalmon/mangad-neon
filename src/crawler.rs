@@ -4,13 +4,12 @@ use async_trait::async_trait;
 use default::DefaultCrawler;
 use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
-use mangad_neon::core::entities::dao::crawler::SubTask;
+use crate::models::tasks::SubTask;
 use mangad_neon::core::entities::dao::{SubTaskResult, SubTaskStatus};
-use mangad_neon::core::entities::inner::{CanonicalizeTask, ReturningTask};
+use crate::models::tasks::{split, ReturningTask};
 use mangad_neon::core::entities::orm::sea_orm_active_enums::TaskStatus;
 use mangad_neon::core::entities::orm::tasks;
 use mangad_neon::core::repository::Repository;
-use mangad_neon::error::Error;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -20,6 +19,8 @@ use tokio::sync::Semaphore;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_retry::strategy::ExponentialBackoff;
 use crate::file::replace;
+use crate::models::error::AppError;
+use crate::models::tasks::CanonicalizeTask;
 
 mod default;
 pub mod jmcomic;
@@ -29,7 +30,7 @@ static CACHE_DIRNAME: &str = ".cache";
 #[async_trait]
 pub trait Crawler: Send + Sync {
     fn site(&self) -> &str;
-    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, Error>;
+    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, AppError>;
 }
 
 pub struct Dispatch {
@@ -98,13 +99,13 @@ impl Dispatch {
         (dispatch, inner_task_tx)
     }
 
-    pub async fn run(&mut self) -> Result<(), Error> {
+    pub async fn run(&mut self) -> Result<(), AppError> {
         let storage_root = self.storage_root.clone();
         'main_loop: while let Some(task) = self.task_rx.recv().await {
             tracing::info!("Received new task: {}", task.task.title());
-            let (tx, mut rx) = mpsc::channel::<(i32, Result<PathBuf, Error>)>(1024);
+            let (tx, mut rx) = mpsc::channel::<(i32, Result<PathBuf, AppError>)>(1024);
             let ReturningTask { task, tid_tx } = task;
-            let Ok(subtasks) = task.split() else {
+            let Ok(subtasks) = split(&task) else {
                 tracing::error!("Failed to split subtasks for task: {}", task.title());
                 continue 'main_loop;
             };
@@ -153,7 +154,7 @@ impl Dispatch {
                     .take(self.max_retries);
 
                 tokio::spawn(async move {
-                    let res: Result<PathBuf, Error> = async {
+                    let res: Result<PathBuf, AppError> = async {
                         let format = if let Some(t) = PathBuf::from(subtask.url.path()).extension()
                         {
                             if let Some(ext) = t.to_str() {
@@ -233,7 +234,7 @@ impl Dispatch {
                         let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
                         let model = self
                             .repo
-                            .update_task_status_with_reason(tid, TaskStatus::Failure, err)
+                            .update_task_status_with_reason(tid, TaskStatus::Failure, &err.to_string())
                             .await?;
                         let _ = self.task_tx.send(model);
                         continue 'main_loop;
@@ -249,7 +250,7 @@ impl Dispatch {
                     let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
                     let model = self
                         .repo
-                        .update_task_status_with_reason(tid, TaskStatus::Failure, err)
+                        .update_task_status_with_reason(tid, TaskStatus::Failure, &err.to_string())
                         .await?;
                     let _ = self.task_tx.send(model);
                     continue 'main_loop;
@@ -272,7 +273,7 @@ impl Dispatch {
                 let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
                 let model = self
                     .repo
-                    .update_task_status_with_reason(tid, TaskStatus::Failure, Error::from(err))
+                    .update_task_status_with_reason(tid, TaskStatus::Failure, &err.to_string())
                     .await?;
                 let _ = self.task_tx.send(model);
                 continue 'main_loop;

@@ -1,9 +1,9 @@
 use image::ImageFormat;
 use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
-use mangad_neon::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
+use crate::models::error::AppError;
 
 pub static THUMBNAIL_PATH: &str = "thumbnail";
 
@@ -29,9 +29,9 @@ impl Thumbnail {
         (thumb, tx)
     }
 
-    pub async fn run(&mut self) -> Result<(), Error> {
+    pub async fn run(&mut self) -> Result<(), AppError> {
         'main: while let Some(ref task) = self.task_rx.recv().await {
-            let resp: Result<(), Error> = async {
+            let resp: Result<(), AppError> = async {
                 let dir = format!("{:0>10}", task.mid);
                 let thumbnail_path = self.config.crawler.storage.join(&dir).join(THUMBNAIL_PATH);
                 let storage_path = self.config.crawler.storage.join(dir);
@@ -68,7 +68,7 @@ impl Thumbnail {
         thumbnail_path: &PathBuf,
         storage_path: &PathBuf,
         index: i32,
-    ) -> Result<(), Error> {
+    ) -> Result<(), AppError> {
         let file = format!("{:0>10}.webp", index);
 
         let thumbnail_path = thumbnail_path.join(&file);
@@ -88,7 +88,7 @@ impl Thumbnail {
     }
 }
 
-fn encode_thumbnail(config: &Arc<Config>, buf: Vec<u8>) -> Result<Vec<u8>, Error> {
+fn encode_thumbnail(config: &Arc<Config>, buf: Vec<u8>) -> Result<Vec<u8>, AppError> {
     let buf = {
         let image = image::load_from_memory_with_format(&buf, ImageFormat::WebP)?;
 

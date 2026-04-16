@@ -7,13 +7,13 @@ use crate::thumbnail::{Thumbnail, ThumbnailTask};
 use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
 use mangad_neon::core::entities::dao::SubTaskResult;
-use mangad_neon::core::entities::inner::ReturningTask;
+use crate::models::tasks::ReturningTask;
 use mangad_neon::core::entities::orm::tasks;
 use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
-use mangad_neon::error::Error;
 use meilisearch_sdk::indexes::Index;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, watch};
+use crate::models::error::AppError;
 
 pub struct Worker {
     index: Arc<Index>,
@@ -49,7 +49,7 @@ pub struct Watch {
 }
 
 impl Worker {
-    pub async fn new(config: Arc<Config>) -> Result<(Self, WorkerHandler), Error> {
+    pub async fn new(config: Arc<Config>) -> Result<(Self, WorkerHandler), AppError> {
         let (thumbnail, thumbnail_tx) = Thumbnail::new(config.clone());
         let (canonicalization, canonical_tx) = Canonicalization::new(config.clone());
 

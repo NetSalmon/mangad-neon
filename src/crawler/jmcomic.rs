@@ -1,10 +1,10 @@
 use crate::crawler::Crawler;
 use async_trait::async_trait;
-use mangad_neon::core::entities::dao::crawler::SubTask;
-use mangad_neon::error::Error;
+use crate::models::tasks::SubTask;
 use md5::{Digest, Md5};
 use reqwest::Client;
 use std::sync::Arc;
+use crate::models::error::AppError;
 
 pub struct JmComicCrawler;
 
@@ -14,14 +14,14 @@ impl Crawler for JmComicCrawler {
         "jmcomic"
     }
 
-    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, Error> {
+    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, AppError> {
         let id = subtask
             .extra
-            .ok_or(Error::CustomError("no extra data"))?
+            .ok_or(AppError::CustomError("no extra data".to_string()))?
             .get("source_id")
-            .ok_or(Error::CustomError("no id"))?
+            .ok_or(AppError::CustomError("no id".to_string()))?
             .as_str()
-            .ok_or(Error::CustomError("id empty"))?
+            .ok_or(AppError::CustomError("id empty".to_string()))?
             .parse::<u64>()?;
 
         let layers = {

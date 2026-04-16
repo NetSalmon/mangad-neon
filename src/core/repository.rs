@@ -95,7 +95,7 @@ impl Repository {
         &self,
         id: i32,
         task_status: TaskStatus,
-        reason: Error,
+        reason: &str,
     ) -> Result<tasks::Model, Error> {
         tracing::warn!(
             "Task {} failed: {:?}. Updating status to {:?}",

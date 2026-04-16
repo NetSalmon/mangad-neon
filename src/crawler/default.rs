@@ -1,10 +1,10 @@
 use crate::crawler::Crawler;
 use async_trait::async_trait;
 use image::EncodableLayout;
-use mangad_neon::core::entities::dao::crawler::SubTask;
-use mangad_neon::error::Error;
+use crate::models::tasks::SubTask;
 use reqwest::Client;
 use std::sync::Arc;
+use crate::models::error::AppError;
 
 pub struct DefaultCrawler;
 
@@ -14,7 +14,7 @@ impl Crawler for DefaultCrawler {
         "all"
     }
 
-    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, Error> {
+    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, AppError> {
         let resp = client
             .get(subtask.url)
             .headers(subtask.headers)

@@ -1,10 +1,11 @@
-use mangad_neon::CHANNEL_SIZE;
+use crate::models::error::AppError;
+use crate::models::tasks::CanonicalizeResult;
+use crate::models::tasks::CanonicalizeTask;
 use mangad_neon::core::config::Config;
-use mangad_neon::core::entities::inner::{CanonicalizeResult, CanonicalizeTask};
-use mangad_neon::error::Error;
+use mangad_neon::CHANNEL_SIZE;
 use std::sync::Arc;
-use tokio::sync::Semaphore;
 use tokio::sync::mpsc;
+use tokio::sync::Semaphore;
 
 pub struct Canonicalization {
     pub rx: mpsc::Receiver<CanonicalizeTask>,
@@ -26,7 +27,7 @@ impl Canonicalization {
                 let result: CanonicalizeResult = async {
                     let _permit = semaphore.acquire_owned().await;
                     let encoded_result =
-                        tokio::task::spawn_blocking(move || -> Result<Vec<u8>, Error> {
+                        tokio::task::spawn_blocking(move || -> Result<Vec<u8>, AppError> {
                             let format = can
                                 .format
                                 .as_ref()
@@ -57,7 +58,7 @@ impl Canonicalization {
                             return Err(e);
                         }
                         Err(e) => {
-                            return Err(Error::TaskJoinError(e));
+                            return Err(AppError::TaskJoinError(e));
                         }
                     };
 

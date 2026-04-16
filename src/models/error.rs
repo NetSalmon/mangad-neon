@@ -5,7 +5,7 @@ use axum::{http, Json};
 use axum::http::header::ToStrError;
 use reqwest::header::{InvalidHeaderName, InvalidHeaderValue};
 use sea_orm::DbErr;
-use mangad_neon::core::entities::dao::ApiResp;
+use mangad_neon::core::dao::ApiResp;
 use crate::models::tasks::CanonicalizeTask;
 use mangad_neon::error::Error;
 use tokio::sync::{mpsc, oneshot, AcquireError};

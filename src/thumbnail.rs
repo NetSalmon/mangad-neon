@@ -4,8 +4,7 @@ use mangad_neon::core::config::Config;
 use std::path::PathBuf;
 use std::sync::Arc;
 use crate::models::error::AppError;
-
-pub static THUMBNAIL_PATH: &str = "thumbnail";
+use crate::THUMBNAIL_PATH;
 
 pub struct ThumbnailTask {
     pub mid: i32,

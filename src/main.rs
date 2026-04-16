@@ -30,3 +30,5 @@ async fn main() -> Result<(), AppError> {
 
     Ok(service(config, path).await?)
 }
+
+pub static THUMBNAIL_PATH: &str = "thumbnail";

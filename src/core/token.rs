@@ -1,4 +1,4 @@
-use crate::core::entities::orm::tokens;
+use crate::core::orm::tokens;
 use crate::error::Error;
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;

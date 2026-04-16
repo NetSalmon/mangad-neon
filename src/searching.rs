@@ -1,5 +1,5 @@
 use mangad_neon::core::config::Config;
-use mangad_neon::core::entities::dao::Document;
+use mangad_neon::core::dao::Document;
 use mangad_neon::core::repository::Repository;
 use meilisearch_sdk::client::Client;
 use meilisearch_sdk::indexes::Index;

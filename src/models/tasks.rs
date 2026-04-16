@@ -2,7 +2,7 @@ use core::str::FromStr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use mangad_neon::core::entities::dao::crawler::Task;
+use mangad_neon::core::dao::Task;
 use url::Url;
 use crate::models::error::AppError;
 

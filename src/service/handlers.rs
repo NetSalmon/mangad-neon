@@ -1,5 +1,5 @@
 use crate::models::error::AppError;
-use mangad_neon::core::entities::dao::ApiResp;
+use mangad_neon::core::dao::ApiResp;
 use serde::Deserialize;
 
 pub type ApiResult<T> = Result<ApiResp<T>, AppError>;
@@ -143,9 +143,9 @@ pub mod business {
     use axum::response::Sse;
     use axum::Json;
     use crate::models::active::IntoActiveModel;
-    use mangad_neon::core::entities::dao::crawler::Task;
-    use mangad_neon::core::entities::dao::{Document, FullData, SearchQuery};
-    use mangad_neon::core::entities::orm::{
+    use mangad_neon::core::dao::Task;
+    use mangad_neon::core::dao::{Document, FullData, SearchQuery};
+    use mangad_neon::core::orm::{
         literatures, metadata, tag_metadata, tags, tasks, tokens,
     };
     use mangad_neon::core::repository;
@@ -370,7 +370,7 @@ pub mod resource {
             .crawler
             .storage
             .join(&dir)
-            .join(thumbnail::THUMBNAIL_PATH)
+            .join(crate::THUMBNAIL_PATH)
             .join(&file);
 
         println!("{}", path.display());
@@ -447,8 +447,8 @@ pub mod tokens {
     use axum::Json;
     use crate::models::active;
     use crate::models::active::IntoActiveModel;
-    use mangad_neon::core::entities::inner::ExpireTime;
-    use mangad_neon::core::entities::orm::tokens;
+    use mangad_neon::core::dao::ExpireTime;
+    use mangad_neon::core::orm::tokens;
     use mangad_neon::core::token::TokenTrait;
     use mangad_neon::error::Error;
     use sea_orm::{EntityTrait, Set};

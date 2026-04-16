@@ -1,7 +1,7 @@
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use mangad_neon::core::config::LogConfig;
-use mangad_neon::core::entities::inner::ExpireTime;
+use mangad_neon::core::dao::ExpireTime;
 use mangad_neon::core::init::init_config;
 use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
 use mangad_neon::log;

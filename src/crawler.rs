@@ -17,8 +17,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
+use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_retry::strategy::ExponentialBackoff;
-use tokio::sync::{mpsc, broadcast, oneshot};
+use crate::file::replace;
 
 mod default;
 pub mod jmcomic;
@@ -266,7 +267,7 @@ impl Dispatch {
             let format_mid = format!("{:0>10}", id);
             let storage_at = Arc::new(storage_root.join(&format_mid));
             println!("storage at: {:#?}", storage_at);
-            if let Err(err) = tokio::fs::rename(&cache_at.as_ref(), &storage_at.as_ref()).await {
+            if let Err(err) = replace(&cache_at.as_ref(), &storage_at.as_ref()).await {
                 eprintln!("failed");
                 let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
                 let model = self

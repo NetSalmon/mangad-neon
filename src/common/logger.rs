@@ -1,4 +1,4 @@
-use crate::core::config::LogConfig;
+use crate::config::LogConfig;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 pub fn init(config: &LogConfig) {

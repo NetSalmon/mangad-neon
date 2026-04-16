@@ -2,11 +2,11 @@ pub mod handlers;
 pub mod middleware;
 pub mod worker;
 
-use crate::daemon::models::error::AppError;
+use crate::daemon::models::errors::DaemonError;
 use crate::daemon::service::worker::{Worker, WorkerHandler};
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::{get, patch, post};
-use mangad_neon::core::config::Config;
+use mangad_neon::config::Config;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ pub struct AppState {
     pub worker: Arc<WorkerHandler>,
 }
 
-pub async fn service(config: Config, path: PathBuf) -> Result<(), AppError> {
+pub async fn service(config: Config, path: PathBuf) -> Result<(), DaemonError> {
     tracing::info!("Starting daemon on {}", config.service.net.host);
     let wrapping_config = Arc::new(config.clone());
     tracing::info!("Database and Search index connected");

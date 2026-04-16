@@ -1,14 +1,14 @@
-use crate::daemon::models::error::AppError;
+use crate::daemon::models::errors::DaemonError;
 use crate::daemon::service::service;
-use mangad_neon::core::init::init_config;
-use mangad_neon::log;
+use mangad_neon::init::init_config;
+use mangad_neon::logger;
 
 mod daemon;
 #[tokio::main]
-async fn main() -> Result<(), AppError> {
+async fn main() -> Result<(), DaemonError> {
     let (path, config) = init_config()?;
 
-    log::init(&config.log);
+    logger::init(&config.log);
 
     tracing::info!(
         "▼ MangaD Neon ▲ \napplication ver: {}",

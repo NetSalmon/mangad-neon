@@ -1,8 +1,8 @@
-use crate::daemon::models::error::AppError;
+use crate::daemon::models::errors::DaemonError;
 use crate::daemon::models::tasks::CanonicalizeResult;
 use crate::daemon::models::tasks::CanonicalizeTask;
 use mangad_neon::CHANNEL_SIZE;
-use mangad_neon::core::config::Config;
+use mangad_neon::config::Config;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::sync::mpsc;
@@ -27,7 +27,7 @@ impl Canonicalization {
                 let result: CanonicalizeResult = async {
                     let _permit = semaphore.acquire_owned().await;
                     let encoded_result =
-                        tokio::task::spawn_blocking(move || -> Result<Vec<u8>, AppError> {
+                        tokio::task::spawn_blocking(move || -> Result<Vec<u8>, DaemonError> {
                             let format = can
                                 .format
                                 .as_ref()
@@ -58,7 +58,7 @@ impl Canonicalization {
                             return Err(e);
                         }
                         Err(e) => {
-                            return Err(AppError::TaskJoinError(e));
+                            return Err(DaemonError::TaskJoinError(e));
                         }
                     };
 

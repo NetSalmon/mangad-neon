@@ -1,6 +1,6 @@
 use crate::daemon::canonicalize::Canonicalization;
 use crate::daemon::crawler::Dispatch;
-use crate::daemon::models::error::AppError;
+use crate::daemon::models::errors::DaemonError;
 use crate::daemon::models::tasks::ReturningTask;
 use crate::daemon::models::tasks::SubTaskResult;
 use crate::daemon::searching;
@@ -8,9 +8,9 @@ use crate::daemon::searching::sync;
 use crate::daemon::service::handlers::basic::SpawnStatus;
 use crate::daemon::thumbnail::{Thumbnail, ThumbnailTask};
 use mangad_neon::CHANNEL_SIZE;
-use mangad_neon::core::config::Config;
-use mangad_neon::core::orm::tasks;
-use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
+use mangad_neon::config::Config;
+use mangad_neon::db::entities::tasks;
+use mangad_neon::db::repository::{IntoDatabaseUrl, Repository};
 use meilisearch_sdk::indexes::Index;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, watch};
@@ -49,7 +49,7 @@ pub struct Watch {
 }
 
 impl Worker {
-    pub async fn new(config: Arc<Config>) -> Result<(Self, WorkerHandler), AppError> {
+    pub async fn new(config: Arc<Config>) -> Result<(Self, WorkerHandler), DaemonError> {
         let (thumbnail, thumbnail_tx) = Thumbnail::new(config.clone());
         let (canonicalization, canonical_tx) = Canonicalization::new(config.clone());
 

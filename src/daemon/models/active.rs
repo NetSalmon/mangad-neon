@@ -1,4 +1,4 @@
-use mangad_neon::core::orm::{
+use mangad_neon::db::entities::{
     literatures, metadata, sea_orm_active_enums, tag_metadata, tags, tasks, tokens,
 };
 use sea_orm::ActiveModelTrait;

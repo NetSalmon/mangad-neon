@@ -1,5 +1,5 @@
 use crate::daemon::crawler::Crawler;
-use crate::daemon::models::error::AppError;
+use crate::daemon::models::errors::DaemonError;
 use crate::daemon::models::tasks::SubTask;
 use async_trait::async_trait;
 use md5::{Digest, Md5};
@@ -14,14 +14,14 @@ impl Crawler for JmComicCrawler {
         "jmcomic"
     }
 
-    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, AppError> {
+    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, DaemonError> {
         let id = subtask
             .extra
-            .ok_or(AppError::CustomError("no extra data".to_string()))?
+            .ok_or(DaemonError::CustomError("no extra data".to_string()))?
             .get("source_id")
-            .ok_or(AppError::CustomError("no id".to_string()))?
+            .ok_or(DaemonError::CustomError("no id".to_string()))?
             .as_str()
-            .ok_or(AppError::CustomError("id empty".to_string()))?
+            .ok_or(DaemonError::CustomError("id empty".to_string()))?
             .parse::<u64>()?;
 
         let layers = {

@@ -13,7 +13,7 @@ use tokio::sync::{AcquireError, mpsc, oneshot};
 use tokio::task::JoinError;
 
 #[derive(thiserror::Error, Debug)]
-pub enum AppError {
+pub enum DaemonError {
     #[error(transparent)]
     MangadError(#[from] Error),
     #[error("canonical task send error {0}")]
@@ -64,10 +64,10 @@ pub enum AppError {
     ConfigPermissionDenied,
 }
 
-impl IntoResponse for AppError {
+impl IntoResponse for DaemonError {
     fn into_response(self) -> axum::response::Response {
         let code = match self {
-            AppError::MangadError(ref err) => match err {
+            DaemonError::MangadError(ref err) => match err {
                 Error::NotFound => StatusCode::NOT_FOUND,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },

@@ -1,7 +1,7 @@
-use mangad_neon::error::Error;
 use std::path::PathBuf;
+use crate::daemon::models::errors::DaemonError;
 
-pub async fn replace(from_cache: &PathBuf, to_storage: &PathBuf) -> Result<(), Error> {
+pub async fn replace(from_cache: &PathBuf, to_storage: &PathBuf) -> Result<(), DaemonError> {
     let err = tokio::fs::rename(from_cache, to_storage).await;
     if err.is_err() {
         tracing::debug!(

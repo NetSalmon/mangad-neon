@@ -18,40 +18,6 @@ impl<T: Serialize> IntoResponse for ApiResp<T> {
     }
 }
 
-impl<T> ApiResp<T> {
-    pub fn success(result: T) -> ApiResp<T> {
-        ApiResp {
-            ok: true,
-            status_code: Some(StatusCode::OK),
-            result,
-        }
-    }
-
-    pub fn failed(result: T) -> ApiResp<T> {
-        ApiResp {
-            ok: false,
-            status_code: None,
-            result,
-        }
-    }
-
-    pub fn success_with(code: StatusCode, result: T) -> ApiResp<T> {
-        ApiResp {
-            ok: false,
-            status_code: Some(code),
-            result,
-        }
-    }
-
-    pub fn failed_with(code: StatusCode, result: T) -> ApiResp<T> {
-        ApiResp {
-            ok: false,
-            status_code: Some(code),
-            result,
-        }
-    }
-}
-
 impl From<&str> for ApiResp<String> {
     fn from(t: &str) -> ApiResp<String> {
         ApiResp {

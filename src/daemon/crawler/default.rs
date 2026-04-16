@@ -1,5 +1,5 @@
 use crate::daemon::crawler::Crawler;
-use crate::daemon::models::error::AppError;
+use crate::daemon::models::errors::DaemonError;
 use crate::daemon::models::tasks::SubTask;
 use async_trait::async_trait;
 use image::EncodableLayout;
@@ -14,7 +14,7 @@ impl Crawler for DefaultCrawler {
         "all"
     }
 
-    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, AppError> {
+    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, DaemonError> {
         let resp = client
             .get(subtask.url)
             .headers(subtask.headers)

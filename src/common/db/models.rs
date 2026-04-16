@@ -1,5 +1,5 @@
-use crate::core::orm::sea_orm_active_enums::TagType;
-use crate::core::orm::{literatures, tags};
+use crate::db::entities::sea_orm_active_enums::TagType;
+use crate::db::entities::{literatures, tags};
 use sea_orm::prelude::DateTimeWithTimeZone;
 use serde::{Deserialize, Serialize};
 use sqlx_core::types::Decimal;

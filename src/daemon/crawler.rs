@@ -1,6 +1,6 @@
 use crate::daemon::crawler::jmcomic::JmComicCrawler;
 use crate::daemon::file::replace;
-use crate::daemon::models::error::AppError;
+use crate::daemon::models::errors::DaemonError;
 use crate::daemon::models::tasks::CanonicalizeTask;
 use crate::daemon::models::tasks::{ReturningTask, split};
 use crate::daemon::models::tasks::{SubTask, SubTaskResult, SubTaskStatus};
@@ -8,10 +8,10 @@ use crate::daemon::thumbnail::{TaskType, ThumbnailTask};
 use async_trait::async_trait;
 use default::DefaultCrawler;
 use mangad_neon::CHANNEL_SIZE;
-use mangad_neon::core::config::Config;
-use mangad_neon::core::orm::sea_orm_active_enums::TaskStatus;
-use mangad_neon::core::orm::tasks;
-use mangad_neon::core::repository::Repository;
+use mangad_neon::config::Config;
+use mangad_neon::db::entities::sea_orm_active_enums::TaskStatus;
+use mangad_neon::db::entities::tasks;
+use mangad_neon::db::repository::Repository;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -29,7 +29,7 @@ static CACHE_DIRNAME: &str = ".cache";
 #[async_trait]
 pub trait Crawler: Send + Sync {
     fn site(&self) -> &str;
-    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, AppError>;
+    async fn handle(&self, subtask: SubTask, client: Arc<Client>) -> Result<Vec<u8>, DaemonError>;
 }
 
 pub struct Dispatch {
@@ -98,11 +98,11 @@ impl Dispatch {
         (dispatch, inner_task_tx)
     }
 
-    pub async fn run(&mut self) -> Result<(), AppError> {
+    pub async fn run(&mut self) -> Result<(), DaemonError> {
         let storage_root = self.storage_root.clone();
         'main_loop: while let Some(task) = self.task_rx.recv().await {
             tracing::info!("Received new task: {}", task.task.title());
-            let (tx, mut rx) = mpsc::channel::<(i32, Result<PathBuf, AppError>)>(1024);
+            let (tx, mut rx) = mpsc::channel::<(i32, Result<PathBuf, DaemonError>)>(1024);
             let ReturningTask { task, tid_tx } = task;
             let Ok(subtasks) = split(&task) else {
                 tracing::error!("Failed to split subtasks for task: {}", task.title());
@@ -153,7 +153,7 @@ impl Dispatch {
                     .take(self.max_retries);
 
                 tokio::spawn(async move {
-                    let res: Result<PathBuf, AppError> = async {
+                    let res: Result<PathBuf, DaemonError> = async {
                         let format = if let Some(t) = PathBuf::from(subtask.url.path()).extension()
                         {
                             if let Some(ext) = t.to_str() {

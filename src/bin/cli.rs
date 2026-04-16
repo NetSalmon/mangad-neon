@@ -1,10 +1,10 @@
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
-use mangad_neon::core::config::LogConfig;
-use mangad_neon::core::dao::ExpireTime;
-use mangad_neon::core::init::init_config;
-use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
-use mangad_neon::log;
+use mangad_neon::config::LogConfig;
+use mangad_neon::db::models::ExpireTime;
+use mangad_neon::init::init_config;
+use mangad_neon::db::repository::{IntoDatabaseUrl, Repository};
+use mangad_neon::logger;
 use uuid::Uuid;
 
 #[derive(Parser)]
@@ -104,7 +104,7 @@ pub fn to_expire_time(s: &str) -> ExpireTime {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum AppError {
+pub enum CliError {
     #[error(transparent)]
     MangadError(#[from] mangad_neon::error::Error),
     #[error("{0}")]
@@ -112,14 +112,14 @@ pub enum AppError {
 }
 
 #[tokio::main]
-pub async fn main() -> Result<(), AppError> {
+pub async fn main() -> Result<(), CliError> {
     let cli = Cli::parse();
 
     let log_level = cli.log_level.clone().unwrap_or_else(|| {
         std::env::var("MANGAD_LOG_LEVEL").unwrap_or_else(|_| "error".to_string())
     });
 
-    log::init(&LogConfig { level: log_level });
+    logger::init(&LogConfig { level: log_level });
 
     let config = init_config();
 
@@ -127,7 +127,7 @@ pub async fn main() -> Result<(), AppError> {
         (_, Some(database_url)) => Repository::new(&database_url).await?,
         (Ok((_, database_url)), None) => Repository::new(&database_url.to_database_url()).await?,
         _ => {
-            return Err(AppError::CustomError(
+            return Err(CliError::CustomError(
                 "No Database URL provided".to_string(),
             ));
         }

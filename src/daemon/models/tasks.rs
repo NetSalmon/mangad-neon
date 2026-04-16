@@ -1,7 +1,7 @@
-use crate::daemon::models::error::AppError;
+use crate::daemon::models::errors::DaemonError;
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use core::str::FromStr;
-use mangad_neon::core::dao::Task;
+use mangad_neon::db::models::Task;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -21,9 +21,9 @@ pub struct ReturningTask {
     pub tid_tx: tokio::sync::oneshot::Sender<i32>,
 }
 
-pub type CanonicalizeResult = Result<PathBuf, AppError>;
+pub type CanonicalizeResult = Result<PathBuf, DaemonError>;
 
-pub fn split(task: &Task) -> Result<Vec<SubTask>, AppError> {
+pub fn split(task: &Task) -> Result<Vec<SubTask>, DaemonError> {
     let mut subtasks = vec![];
 
     let mut headers = HeaderMap::new();

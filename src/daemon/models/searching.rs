@@ -1,5 +1,5 @@
-use mangad_neon::core::orm::sea_orm_active_enums::TagType;
-use mangad_neon::core::orm::{literatures, tags};
+use mangad_neon::db::entities::sea_orm_active_enums::TagType;
+use mangad_neon::db::entities::{literatures, tags};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

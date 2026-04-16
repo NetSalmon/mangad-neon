@@ -1,10 +1,11 @@
+use crate::daemon::models::error::AppError;
+use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use core::str::FromStr;
+use mangad_neon::core::dao::Task;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
-use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use mangad_neon::core::dao::Task;
 use url::Url;
-use crate::models::error::AppError;
 
 pub struct CanonicalizeTask {
     pub buffer: Arc<Vec<u8>>,
@@ -59,4 +60,18 @@ pub struct SubTask {
     pub source_site: Arc<String>,
     pub index: i32,
     pub extra: Option<Arc<serde_json::Value>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SubTaskResult {
+    pub tid: i32,
+    pub index: i32,
+    pub status: SubTaskStatus,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum SubTaskStatus {
+    Ok,
+    Err(String),
 }

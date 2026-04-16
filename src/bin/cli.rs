@@ -127,7 +127,9 @@ pub async fn main() -> Result<(), AppError> {
         (_, Some(database_url)) => Repository::new(&database_url).await?,
         (Ok((_, database_url)), None) => Repository::new(&database_url.to_database_url()).await?,
         _ => {
-            return Err(AppError::CustomError("No Database URL provided".to_string()));
+            return Err(AppError::CustomError(
+                "No Database URL provided".to_string(),
+            ));
         }
     };
 

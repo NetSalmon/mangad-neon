@@ -1,5 +1,5 @@
-use crate::models::error::AppError;
-use mangad_neon::core::dao::ApiResp;
+use crate::daemon::models::api::ApiResp;
+use crate::daemon::models::error::AppError;
 use serde::Deserialize;
 
 pub type ApiResult<T> = Result<ApiResp<T>, AppError>;
@@ -94,8 +94,8 @@ macro_rules! paged_select {
 }
 
 pub mod basic {
-    use crate::service::handlers::ApiResult;
-    use crate::service::AppState;
+    use crate::daemon::service::AppState;
+    use crate::daemon::service::handlers::ApiResult;
     use axum::extract::State;
     use serde::Serialize;
     use std::sync::Arc;
@@ -134,20 +134,21 @@ pub mod basic {
 }
 
 pub mod business {
-    use crate::models::error::AppError;
-    use crate::models::tasks::ReturningTask;
-    use crate::service::handlers::{ApiResult, PagedQuery};
-    use crate::service::AppState;
-    use axum::extract::{Path, Query, State};
-    use axum::response::sse::Event;
-    use axum::response::Sse;
+    use crate::daemon::models::active;
+    use crate::daemon::models::active::IntoActiveModel;
+    use crate::daemon::models::api::SearchQuery;
+    use crate::daemon::models::error::AppError;
+    use crate::daemon::models::searching::Document;
+    use crate::daemon::models::tasks::ReturningTask;
+    use crate::daemon::service::AppState;
+    use crate::daemon::service::handlers::{ApiResult, PagedQuery};
     use axum::Json;
-    use crate::models::active::IntoActiveModel;
+    use axum::extract::{Path, Query, State};
+    use axum::response::Sse;
+    use axum::response::sse::Event;
+    use mangad_neon::core::dao::FullData;
     use mangad_neon::core::dao::Task;
-    use mangad_neon::core::dao::{Document, FullData, SearchQuery};
-    use mangad_neon::core::orm::{
-        literatures, metadata, tag_metadata, tags, tasks, tokens,
-    };
+    use mangad_neon::core::orm::{literatures, metadata, tag_metadata, tags, tasks, tokens};
     use mangad_neon::core::repository;
     use mangad_neon::error::Error;
     use meilisearch_sdk::search::SearchResult;
@@ -157,7 +158,6 @@ pub mod business {
     use std::sync::Arc;
     use tokio::sync::oneshot;
     use tokio_stream::Stream;
-    use crate::models::active;
 
     pub async fn add_tasks(
         State(state): State<Arc<AppState>>,
@@ -318,15 +318,14 @@ pub mod business {
 }
 
 pub mod resource {
-    use crate::service::AppState;
-    use crate::thumbnail;
-    use crate::thumbnail::{TaskType, ThumbnailTask};
+    use crate::daemon::models::error::AppError;
+    use crate::daemon::service::AppState;
+    use crate::daemon::thumbnail::{TaskType, ThumbnailTask};
     use axum::body::Body;
     use axum::extract::{Path, State};
     use axum::response::Response;
     use std::sync::Arc;
     use tokio::fs::File;
-    use crate::models::error::AppError;
 
     pub async fn images(
         State(state): State<Arc<AppState>>,
@@ -370,7 +369,7 @@ pub mod resource {
             .crawler
             .storage
             .join(&dir)
-            .join(crate::THUMBNAIL_PATH)
+            .join(crate::daemon::THUMBNAIL_PATH)
             .join(&file);
 
         println!("{}", path.display());
@@ -409,13 +408,13 @@ pub mod resource {
 }
 
 pub mod configure {
-    use crate::service::handlers::ApiResult;
-    use crate::service::AppState;
-    use axum::extract::State;
+    use crate::daemon::models::error::AppError;
+    use crate::daemon::service::AppState;
+    use crate::daemon::service::handlers::ApiResult;
     use axum::Json;
+    use axum::extract::State;
     use mangad_neon::core::config::Config;
     use std::sync::Arc;
-    use crate::models::error::AppError;
 
     pub async fn select_config(State(state): State<Arc<AppState>>) -> ApiResult<Config> {
         let config = state.config.read().await.clone();
@@ -441,12 +440,13 @@ pub mod configure {
 }
 
 pub mod tokens {
-    use crate::service::handlers::{ApiResult, PagedQuery};
-    use crate::service::AppState;
-    use axum::extract::{Path, Query, State};
+    use crate::daemon::models::active;
+    use crate::daemon::models::active::IntoActiveModel;
+    use crate::daemon::models::error::AppError;
+    use crate::daemon::service::AppState;
+    use crate::daemon::service::handlers::{ApiResult, PagedQuery};
     use axum::Json;
-    use crate::models::active;
-    use crate::models::active::IntoActiveModel;
+    use axum::extract::{Path, Query, State};
     use mangad_neon::core::dao::ExpireTime;
     use mangad_neon::core::orm::tokens;
     use mangad_neon::core::token::TokenTrait;
@@ -455,7 +455,6 @@ pub mod tokens {
     use serde::Deserialize;
     use std::sync::Arc;
     use uuid::Uuid;
-    use crate::models::error::AppError;
 
     pub async fn list_tokens(
         State(state): State<Arc<AppState>>,

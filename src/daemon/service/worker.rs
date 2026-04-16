@@ -1,19 +1,19 @@
-use crate::canonicalize::Canonicalization;
-use crate::crawler::Dispatch;
-use crate::searching;
-use crate::searching::sync;
-use crate::service::handlers::basic::SpawnStatus;
-use crate::thumbnail::{Thumbnail, ThumbnailTask};
+use crate::daemon::canonicalize::Canonicalization;
+use crate::daemon::crawler::Dispatch;
+use crate::daemon::models::error::AppError;
+use crate::daemon::models::tasks::ReturningTask;
+use crate::daemon::models::tasks::SubTaskResult;
+use crate::daemon::searching;
+use crate::daemon::searching::sync;
+use crate::daemon::service::handlers::basic::SpawnStatus;
+use crate::daemon::thumbnail::{Thumbnail, ThumbnailTask};
 use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
-use mangad_neon::core::dao::SubTaskResult;
-use crate::models::tasks::ReturningTask;
 use mangad_neon::core::orm::tasks;
 use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
 use meilisearch_sdk::indexes::Index;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, watch};
-use crate::models::error::AppError;
 
 pub struct Worker {
     index: Arc<Index>,

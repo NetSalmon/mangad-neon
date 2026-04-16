@@ -15,7 +15,7 @@ COPY Cargo.toml Cargo.lock ./
 
 # Create dummy source files to cache dependencies
 RUN mkdir -p src/bin && \
-    echo "fn main() {}" > src/main.rs && \
+    echo "fn main() {}" > src/daemon && \
     touch src/lib.rs && \
     echo "fn main() {}" > src/bin/cli.rs
 
@@ -27,7 +27,7 @@ COPY . .
 
 # Build the actual binaries
 # We need to touch the files to ensure cargo notices the changes
-RUN touch src/main.rs src/lib.rs src/bin/cli.rs && \
+RUN touch src/daemon src/lib.rs src/bin/cli.rs && \
     cargo build --release
 
 # --- Runtime Stage ---
@@ -62,7 +62,7 @@ ENV MANGAD_SERVICE_HOST=0.0.0.0:6789
 ENV MANGAD_CONFIG_PATH=/app/config/config.toml
 ENV MANGAD_CRAWLER_STORAGE=/app/storage
 
-# Expose the service port
+# Expose the daemon port
 EXPOSE 6789
 
 # Run the server

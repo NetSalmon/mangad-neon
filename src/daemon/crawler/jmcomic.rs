@@ -1,10 +1,10 @@
-use crate::crawler::Crawler;
+use crate::daemon::crawler::Crawler;
+use crate::daemon::models::error::AppError;
+use crate::daemon::models::tasks::SubTask;
 use async_trait::async_trait;
-use crate::models::tasks::SubTask;
 use md5::{Digest, Md5};
 use reqwest::Client;
 use std::sync::Arc;
-use crate::models::error::AppError;
 
 pub struct JmComicCrawler;
 

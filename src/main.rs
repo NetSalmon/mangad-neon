@@ -1,18 +1,9 @@
-extern crate alloc;
-
+use crate::daemon::models::error::AppError;
+use crate::daemon::service::service;
 use mangad_neon::core::init::init_config;
 use mangad_neon::log;
-use service::service;
-use crate::models::error::AppError;
 
-pub mod canonicalize;
-pub mod crawler;
-pub mod file;
-pub mod searching;
-pub mod service;
-pub mod thumbnail;
-pub mod models;
-
+mod daemon;
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     let (path, config) = init_config()?;
@@ -30,5 +21,3 @@ async fn main() -> Result<(), AppError> {
 
     Ok(service(config, path).await?)
 }
-
-pub static THUMBNAIL_PATH: &str = "thumbnail";

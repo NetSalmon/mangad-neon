@@ -121,10 +121,18 @@ impl Default for PermissionsConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LogConfig {
     #[serde(default = "default_log_level")]
     pub level: String,
+}
+
+impl Default for LogConfig {
+    fn default() -> Self {
+        Self {
+            level: default_log_level(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

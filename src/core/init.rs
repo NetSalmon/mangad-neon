@@ -1,7 +1,7 @@
+use crate::CONFIG_PATH;
 use crate::core::config::Config;
 use crate::error::Error;
 use std::path::PathBuf;
-use crate::CONFIG_PATH;
 
 pub fn init_config() -> Result<(PathBuf, Config), Error> {
     dotenvy::dotenv().ok();

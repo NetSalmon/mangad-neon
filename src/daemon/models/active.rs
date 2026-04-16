@@ -211,19 +211,3 @@ set!(Tasks => tasks::ActiveModel {
     create_time,
     update_time,
 });
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-    #[test]
-    fn serialize() {
-        let a = json!({
-            "id": 123,
-            "status": "processing",
-        });
-
-        let b = serde_json::from_value::<Tasks>(a).unwrap();
-        println!("{:?}", b.into_active_model());
-    }
-}

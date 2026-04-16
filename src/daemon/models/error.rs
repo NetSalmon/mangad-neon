@@ -1,16 +1,16 @@
-use std::num::ParseIntError;
-use axum::response::IntoResponse;
+use crate::daemon::models::api::ApiResp;
+use crate::daemon::models::tasks::CanonicalizeTask;
+use crate::daemon::models::tasks::ReturningTask;
 use axum::http::StatusCode;
-use axum::{http, Json};
 use axum::http::header::ToStrError;
+use axum::response::IntoResponse;
+use axum::{Json, http};
+use mangad_neon::error::Error;
 use reqwest::header::{InvalidHeaderName, InvalidHeaderValue};
 use sea_orm::DbErr;
-use mangad_neon::core::dao::ApiResp;
-use crate::models::tasks::CanonicalizeTask;
-use mangad_neon::error::Error;
-use tokio::sync::{mpsc, oneshot, AcquireError};
+use std::num::ParseIntError;
+use tokio::sync::{AcquireError, mpsc, oneshot};
 use tokio::task::JoinError;
-use crate::models::tasks::ReturningTask;
 
 #[derive(thiserror::Error, Debug)]
 pub enum AppError {
@@ -67,12 +67,10 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
         let code = match self {
-            AppError::MangadError(ref err) => {
-                match err {
-                    Error::NotFound => StatusCode::NOT_FOUND,
-                    _ => StatusCode::INTERNAL_SERVER_ERROR,
-                }
-            }
+            AppError::MangadError(ref err) => match err {
+                Error::NotFound => StatusCode::NOT_FOUND,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            },
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

@@ -1,11 +1,11 @@
+use crate::daemon::models::error::AppError;
+use crate::daemon::models::searching::Document;
 use mangad_neon::core::config::Config;
-use mangad_neon::core::dao::Document;
 use mangad_neon::core::repository::Repository;
 use meilisearch_sdk::client::Client;
 use meilisearch_sdk::indexes::Index;
 use sea_orm::sqlx::postgres::PgListener;
 use std::sync::Arc;
-use crate::models::error::AppError;
 
 pub async fn index(config: Arc<Config>) -> Result<Index, AppError> {
     let client = Client::new(&config.search.host, config.search.api_key.clone())?;
@@ -41,9 +41,9 @@ pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), AppErr
         let res: Result<(), AppError> = async {
             match channel {
                 "literatures" | "tag_metadata" => {
-                    let id: i32 = payload
-                        .parse()
-                        .map_err(|_| AppError::CustomError("string parse to int error".to_string()))?;
+                    let id: i32 = payload.parse().map_err(|_| {
+                        AppError::CustomError("string parse to int error".to_string())
+                    })?;
                     let (literatures, tags) = repo.select_literatures_and_tags(id).await?;
                     let docs: Vec<Document> = literatures
                         .into_iter()
@@ -53,9 +53,9 @@ pub async fn sync(repo: Arc<Repository>, index: Arc<Index>) -> Result<(), AppErr
                     index.add_documents(&docs, Some("id")).await?;
                 }
                 "tags" => {
-                    let id: i32 = payload
-                        .parse()
-                        .map_err(|_| AppError::CustomError("string parse to int error".to_string()))?;
+                    let id: i32 = payload.parse().map_err(|_| {
+                        AppError::CustomError("string parse to int error".to_string())
+                    })?;
 
                     let ids = repo.select_metadata_id_by_tag_id(id).await?;
                     let mut docs: Vec<Document> = vec![];

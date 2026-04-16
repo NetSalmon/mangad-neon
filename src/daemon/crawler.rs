@@ -1,12 +1,14 @@
-use crate::crawler::jmcomic::JmComicCrawler;
-use crate::thumbnail::{TaskType, ThumbnailTask};
+use crate::daemon::crawler::jmcomic::JmComicCrawler;
+use crate::daemon::file::replace;
+use crate::daemon::models::error::AppError;
+use crate::daemon::models::tasks::CanonicalizeTask;
+use crate::daemon::models::tasks::{ReturningTask, split};
+use crate::daemon::models::tasks::{SubTask, SubTaskResult, SubTaskStatus};
+use crate::daemon::thumbnail::{TaskType, ThumbnailTask};
 use async_trait::async_trait;
 use default::DefaultCrawler;
 use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
-use crate::models::tasks::SubTask;
-use mangad_neon::core::dao::{SubTaskResult, SubTaskStatus};
-use crate::models::tasks::{split, ReturningTask};
 use mangad_neon::core::orm::sea_orm_active_enums::TaskStatus;
 use mangad_neon::core::orm::tasks;
 use mangad_neon::core::repository::Repository;
@@ -18,9 +20,6 @@ use std::time::Duration;
 use tokio::sync::Semaphore;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_retry::strategy::ExponentialBackoff;
-use crate::file::replace;
-use crate::models::error::AppError;
-use crate::models::tasks::CanonicalizeTask;
 
 mod default;
 pub mod jmcomic;
@@ -234,7 +233,11 @@ impl Dispatch {
                         let _ = tokio::fs::remove_dir_all(cache_at.as_ref()).await;
                         let model = self
                             .repo
-                            .update_task_status_with_reason(tid, TaskStatus::Failure, &err.to_string())
+                            .update_task_status_with_reason(
+                                tid,
+                                TaskStatus::Failure,
+                                &err.to_string(),
+                            )
                             .await?;
                         let _ = self.task_tx.send(model);
                         continue 'main_loop;

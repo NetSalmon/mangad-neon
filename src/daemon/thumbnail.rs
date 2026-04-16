@@ -1,10 +1,10 @@
+use crate::daemon::THUMBNAIL_PATH;
+use crate::daemon::models::error::AppError;
 use image::ImageFormat;
 use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
 use std::path::PathBuf;
 use std::sync::Arc;
-use crate::models::error::AppError;
-use crate::THUMBNAIL_PATH;
 
 pub struct ThumbnailTask {
     pub mid: i32,

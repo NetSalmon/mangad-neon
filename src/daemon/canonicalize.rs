@@ -1,11 +1,11 @@
-use crate::models::error::AppError;
-use crate::models::tasks::CanonicalizeResult;
-use crate::models::tasks::CanonicalizeTask;
-use mangad_neon::core::config::Config;
+use crate::daemon::models::error::AppError;
+use crate::daemon::models::tasks::CanonicalizeResult;
+use crate::daemon::models::tasks::CanonicalizeTask;
 use mangad_neon::CHANNEL_SIZE;
+use mangad_neon::core::config::Config;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tokio::sync::Semaphore;
+use tokio::sync::mpsc;
 
 pub struct Canonicalization {
     pub rx: mpsc::Receiver<CanonicalizeTask>,

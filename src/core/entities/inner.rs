@@ -16,7 +16,7 @@ pub struct CanonicalizeTask {
     pub repeat: tokio::sync::oneshot::Sender<CanonicalizeResult>,
 }
 
-pub struct InnerTask {
+pub struct ReturningTask {
     pub task: Task,
     pub tid_tx: tokio::sync::oneshot::Sender<i32>,
 }

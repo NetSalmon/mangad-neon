@@ -3,7 +3,7 @@ use crate::core::entities::dao::crawler::{Literature, Tag, Task};
 use crate::core::entities::dao::{FullData, InlineLiterature, InlineTag};
 use crate::core::entities::inner::ExpireTime;
 use crate::core::entities::orm::prelude::Tasks;
-use crate::core::entities::orm::sea_orm_active_enums::TaskStatus;
+use crate::core::entities::orm::sea_orm_active_enums::{TagType, TaskStatus};
 use crate::core::entities::orm::{literatures, metadata, tag_metadata, tags, tasks, tokens};
 use crate::core::token;
 use crate::core::token::TokenTrait;
@@ -213,7 +213,7 @@ impl Repository {
         let active_models: Vec<tags::ActiveModel> = tags
             .into_iter()
             .map(|tag| tags::ActiveModel {
-                r#type: Set(tag.r#type.to_orm()),
+                r#type: Set(tag.r#type.clone().into()),
                 label: Set(tag.label.clone()),
                 canonical_id: Set(tag.canonical_id.to_owned()),
                 ..Default::default()
@@ -233,7 +233,7 @@ impl Repository {
         for item in tags {
             condition = condition.add(
                 Condition::all()
-                    .add(tags::Column::Type.eq(item.r#type.to_orm()))
+                    .add(tags::Column::Type.eq::<TagType>(item.r#type.clone().into()))
                     .add(tags::Column::Label.eq(item.label.clone())),
             );
         }

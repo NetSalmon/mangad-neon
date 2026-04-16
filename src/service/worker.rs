@@ -7,7 +7,7 @@ use crate::thumbnail::{Thumbnail, ThumbnailTask};
 use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
 use mangad_neon::core::entities::dao::SubTaskResult;
-use mangad_neon::core::entities::inner::InnerTask;
+use mangad_neon::core::entities::inner::ReturningTask;
 use mangad_neon::core::entities::orm::tasks;
 use mangad_neon::core::repository::{IntoDatabaseUrl, Repository};
 use mangad_neon::error::Error;
@@ -34,7 +34,7 @@ pub struct WorkerHandler {
     pub sub_task_tx: broadcast::Sender<SubTaskResult>,
     pub thumbnail_tx: mpsc::Sender<ThumbnailTask>,
     pub task_tx: broadcast::Sender<tasks::Model>,
-    pub dispatch_tx: mpsc::Sender<InnerTask>,
+    pub dispatch_tx: mpsc::Sender<ReturningTask>,
     pub watch: Watch,
 
     _task_rx: broadcast::Receiver<tasks::Model>,

@@ -1,5 +1,5 @@
 use crate::core::entities::dao::ApiResp;
-use crate::core::entities::inner::{CanonicalizeTask, InnerTask};
+use crate::core::entities::inner::{CanonicalizeTask, ReturningTask};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Json, http};
@@ -44,7 +44,7 @@ pub enum Error {
     #[error("task join error {0}")]
     TaskJoinError(#[from] JoinError),
     #[error("inner task add error {0}")]
-    InnerTaskAddError(#[from] tokio::sync::mpsc::error::SendError<InnerTask>),
+    InnerTaskAddError(#[from] tokio::sync::mpsc::error::SendError<ReturningTask>),
     #[error("canonical task send error {0}")]
     CanonicalSendError(#[from] tokio::sync::mpsc::error::SendError<CanonicalizeTask>),
     #[error("canonical task receive error {0}")]
@@ -85,7 +85,7 @@ pub enum Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
-        let code =  match self {
+        let code = match self {
             Error::NotFound => StatusCode::NOT_FOUND,
             Error::BadRequestError(_)
             | Error::InvalidTokenFormatError

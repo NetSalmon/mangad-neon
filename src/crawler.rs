@@ -6,7 +6,7 @@ use mangad_neon::CHANNEL_SIZE;
 use mangad_neon::core::config::Config;
 use mangad_neon::core::entities::dao::crawler::SubTask;
 use mangad_neon::core::entities::dao::{SubTaskResult, SubTaskStatus};
-use mangad_neon::core::entities::inner::{CanonicalizeTask, InnerTask};
+use mangad_neon::core::entities::inner::{CanonicalizeTask, ReturningTask};
 use mangad_neon::core::entities::orm::sea_orm_active_enums::TaskStatus;
 use mangad_neon::core::entities::orm::tasks;
 use mangad_neon::core::repository::Repository;
@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
 use tokio_retry::strategy::ExponentialBackoff;
+use tokio::sync::{mpsc, broadcast, oneshot};
 
 mod default;
 pub mod jmcomic;
@@ -37,28 +38,28 @@ pub struct Dispatch {
     clawers: HashMap<String, Arc<dyn Crawler>>,
     semaphore: Arc<Semaphore>,
     storage_root: Arc<PathBuf>,
-    canonical_tx: tokio::sync::mpsc::Sender<CanonicalizeTask>,
-    rx: tokio::sync::mpsc::Receiver<InnerTask>,
+    canonical_tx: mpsc::Sender<CanonicalizeTask>,
+    task_rx: mpsc::Receiver<ReturningTask>,
     delay: u64,
     max_delay: Duration,
     max_retries: usize,
 
     repo: Arc<Repository>,
-    task_tx: tokio::sync::broadcast::Sender<tasks::Model>,
-    sub_task_tx: tokio::sync::broadcast::Sender<SubTaskResult>,
-    thumbnail_tx: tokio::sync::mpsc::Sender<ThumbnailTask>,
+    task_tx: broadcast::Sender<tasks::Model>,
+    sub_task_tx: broadcast::Sender<SubTaskResult>,
+    thumbnail_tx: mpsc::Sender<ThumbnailTask>,
 }
 
 impl Dispatch {
     pub fn new(
         config: Arc<Config>,
         repo: Arc<Repository>,
-        task_tx: tokio::sync::broadcast::Sender<tasks::Model>,
-        sub_task_tx: tokio::sync::broadcast::Sender<SubTaskResult>,
-        thumbnail_tx: tokio::sync::mpsc::Sender<ThumbnailTask>,
-        canonical_tx: tokio::sync::mpsc::Sender<CanonicalizeTask>,
-    ) -> (Self, tokio::sync::mpsc::Sender<InnerTask>) {
-        let (inner_task_tx, rx) = tokio::sync::mpsc::channel::<InnerTask>(CHANNEL_SIZE);
+        task_tx: broadcast::Sender<tasks::Model>,
+        sub_task_tx: broadcast::Sender<SubTaskResult>,
+        thumbnail_tx: mpsc::Sender<ThumbnailTask>,
+        canonical_tx: mpsc::Sender<CanonicalizeTask>,
+    ) -> (Self, mpsc::Sender<ReturningTask>) {
+        let (inner_task_tx, rx) = mpsc::channel::<ReturningTask>(CHANNEL_SIZE);
         let client = Arc::from(Client::new());
 
         // registry crawlers
@@ -83,7 +84,7 @@ impl Dispatch {
             default_crawler,
             canonical_tx,
             storage_root,
-            rx,
+            task_rx: rx,
             delay,
             max_delay,
             max_retries,
@@ -98,10 +99,10 @@ impl Dispatch {
 
     pub async fn run(&mut self) -> Result<(), Error> {
         let storage_root = self.storage_root.clone();
-        'main_loop: while let Some(task) = self.rx.recv().await {
+        'main_loop: while let Some(task) = self.task_rx.recv().await {
             tracing::info!("Received new task: {}", task.task.title());
-            let (tx, mut rx) = tokio::sync::mpsc::channel::<(i32, Result<PathBuf, Error>)>(1024);
-            let InnerTask { task, tid_tx } = task;
+            let (tx, mut rx) = mpsc::channel::<(i32, Result<PathBuf, Error>)>(1024);
+            let ReturningTask { task, tid_tx } = task;
             let Ok(subtasks) = task.split() else {
                 tracing::error!("Failed to split subtasks for task: {}", task.title());
                 continue 'main_loop;
@@ -176,7 +177,7 @@ impl Dispatch {
                         })
                         .await?;
 
-                        let (tx, rx) = tokio::sync::oneshot::channel();
+                        let (tx, rx) = oneshot::channel();
 
                         let t = CanonicalizeTask {
                             buffer: Arc::new(buffer),

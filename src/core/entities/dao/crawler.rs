@@ -19,21 +19,9 @@ pub enum TagType {
     Group,
 }
 
-impl TagType {
-    pub fn to_orm(&self) -> ORMTagType {
-        match self {
-            TagType::Genre => ORMTagType::Genre,
-            TagType::Artist => ORMTagType::Artist,
-            TagType::Origin => ORMTagType::Origin,
-            TagType::Serial => ORMTagType::Serial,
-            TagType::Chara => ORMTagType::Character,
-            TagType::Lang => ORMTagType::Lang,
-            TagType::Group => ORMTagType::Group,
-        }
-    }
-
-    pub fn from_orm(value: ORMTagType) -> TagType {
-        match value {
+impl From<ORMTagType> for TagType {
+    fn from(tag_type: ORMTagType) -> Self {
+        match tag_type {
             ORMTagType::Genre => TagType::Genre,
             ORMTagType::Artist => TagType::Artist,
             ORMTagType::Origin => TagType::Origin,
@@ -41,6 +29,20 @@ impl TagType {
             ORMTagType::Character => TagType::Chara,
             ORMTagType::Lang => TagType::Lang,
             ORMTagType::Group => TagType::Group,
+        }
+    }
+}
+
+impl From<TagType> for ORMTagType {
+    fn from(tag_type: TagType) -> Self {
+        match tag_type {
+            TagType::Genre => ORMTagType::Genre,
+            TagType::Artist => ORMTagType::Artist,
+            TagType::Origin => ORMTagType::Origin,
+            TagType::Serial => ORMTagType::Serial,
+            TagType::Chara => ORMTagType::Character,
+            TagType::Lang => ORMTagType::Lang,
+            TagType::Group => ORMTagType::Group,
         }
     }
 }

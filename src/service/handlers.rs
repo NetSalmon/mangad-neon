@@ -60,7 +60,6 @@ macro_rules! patch {
         }
     };
 }
-
 macro_rules! select {
     ($entity:ident - $($key:ident : $t:ident),*$(,)?) => {
         paste::paste! {
@@ -144,7 +143,7 @@ pub mod business {
     use mangad_neon::core::entities::dao::active::IntoActiveModel;
     use mangad_neon::core::entities::dao::crawler::Task;
     use mangad_neon::core::entities::dao::{Document, FullData, SearchQuery, active};
-    use mangad_neon::core::entities::inner::InnerTask;
+    use mangad_neon::core::entities::inner::ReturningTask;
     use mangad_neon::core::entities::orm::{
         literatures, metadata, tag_metadata, tags, tasks, tokens,
     };
@@ -163,7 +162,7 @@ pub mod business {
         Json(task): Json<Task>,
     ) -> ApiResult<i32> {
         let (tid_tx, tid_rx) = oneshot::channel();
-        let inner_task = InnerTask { task, tid_tx };
+        let inner_task = ReturningTask { task, tid_tx };
 
         state.worker.dispatch_tx.send(inner_task).await?;
 

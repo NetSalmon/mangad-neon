@@ -85,40 +85,14 @@ pub enum Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
-        let code = match self {
-            Error::IOError(_)
-            | Error::ConfigParseError(_)
-            | Error::JsonError(_)
-            | Error::RequestError(_)
-            | Error::TestingError(_)
-            | Error::MaxRetriesError(_)
-            | Error::InfallibleError(_)
-            | Error::ImageError(_)
-            | Error::InvalidHeaderNameError(_)
-            | Error::InvalidHeaderValueError(_)
-            | Error::UrlParseError(_)
-            | Error::DatabaseError(_)
-            | Error::DatabaseNotFoundedError(_)
-            | Error::TaskJoinError(_)
-            | Error::CanonicalSendError(_)
-            | Error::CanonicalReceiveError(_)
-            | Error::InnerTaskAddError(_)
-            | Error::SemaphoreCloseError(_)
-            | Error::TokenHashError(_)
-            | Error::UuidError(_)
-            | Error::InvalidTokenFormatError
-            | Error::HeaderValueToStringError(_)
-            | Error::SqlxCoreError(_)
-            | Error::CustomError(_)
-            | Error::HttpError(_)
-            | Error::MeiliSearchError(_)
-            | Error::TomlSerializationError(_)
-            | Error::InvalidImagePath(_)
-            | Error::ParseIntError(_)
-            | Error::MissingHeaderError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        let code =  match self {
             Error::NotFound => StatusCode::NOT_FOUND,
-            Error::BadRequestError(_) => StatusCode::BAD_REQUEST,
+            Error::BadRequestError(_)
+            | Error::InvalidTokenFormatError
+            | Error::MissingHeaderError(_)
+            | Error::InvalidImagePath(_) => StatusCode::BAD_REQUEST,
             Error::ConfigPermissionDenied | Error::TokenPermissionDenied => StatusCode::FORBIDDEN,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let body = ApiResp {

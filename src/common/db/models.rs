@@ -23,7 +23,7 @@ pub struct InlineLiterature {
     pub lang: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InlineTag {
     pub id: i32,
     pub r#type: TagType,

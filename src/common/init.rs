@@ -2,7 +2,6 @@ use crate::CONFIG_PATH;
 use crate::config::Config;
 use crate::error::Error;
 use std::path::PathBuf;
-use url::Url;
 
 pub fn init_config() -> Result<(PathBuf, Config), Error> {
     dotenvy::dotenv().ok();

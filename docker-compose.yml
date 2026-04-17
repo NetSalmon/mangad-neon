@@ -5,7 +5,7 @@ services:
     image: postgres:latest
     container_name: mangad-neon-postgres
     environment:
-      POSTGRES_PASSWORD: 081525
+      POSTGRES_PASSWORD: passwd
       POSTGRES_DB: mangad_neon
     ports:
       - "5432:5432"

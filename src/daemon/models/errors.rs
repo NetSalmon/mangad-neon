@@ -52,8 +52,6 @@ pub enum DaemonError {
     InvalidHeaderValueError(#[from] InvalidHeaderValue),
     #[error("parse int error {0}")]
     ParseIntError(#[from] ParseIntError),
-    #[error("invalid format")]
-    InvalidTokenFormatError,
     #[error("header value to string token")]
     HeaderValueToStringError(#[from] ToStrError),
     #[error("url parse error {0}")]
@@ -62,6 +60,8 @@ pub enum DaemonError {
     TokenPermissionDenied,
     #[error("config permission denied")]
     ConfigPermissionDenied,
+    #[error("not found")]
+    NotFound,
 }
 
 impl IntoResponse for DaemonError {

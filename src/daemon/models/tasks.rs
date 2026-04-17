@@ -31,7 +31,6 @@ pub fn split(task: &Task) -> Result<Vec<SubTask>, DaemonError> {
         headers.insert(HeaderName::from_str(k)?, HeaderValue::from_str(v)?);
     }
 
-    let source_site = Arc::new(task.source_site.clone());
     let extra = if let Some(data) = task.extra.clone() {
         Some(Arc::new(data))
     } else {
@@ -42,7 +41,6 @@ pub fn split(task: &Task) -> Result<Vec<SubTask>, DaemonError> {
         let subtask = SubTask {
             url: image.parse()?,
             headers: headers.clone(),
-            source_site: source_site.clone(),
             index: index as i32,
             extra: extra.clone(),
         };
@@ -57,7 +55,6 @@ pub fn split(task: &Task) -> Result<Vec<SubTask>, DaemonError> {
 pub struct SubTask {
     pub url: Url,
     pub headers: HeaderMap,
-    pub source_site: Arc<String>,
     pub index: i32,
     pub extra: Option<Arc<serde_json::Value>>,
 }

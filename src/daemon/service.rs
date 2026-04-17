@@ -5,7 +5,7 @@ pub mod worker;
 use crate::daemon::models::errors::DaemonError;
 use crate::daemon::service::worker::{Worker, WorkerHandler};
 use axum::middleware::{from_fn, from_fn_with_state};
-use axum::routing::{get, patch, post};
+use axum::routing::{delete, get, patch, post};
 use mangad_neon::config::Config;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -57,6 +57,8 @@ pub async fn service(config: Config, path: PathBuf) -> Result<(), DaemonError> {
             "/mangas/{id}",
             get(handlers::business::select_full_data_by_id),
         )
+        .route("/mangas/{id}/tags", get(handlers::business::select_manga_tags))
+        .route("/mangas/{id}/tags/{id}", get(handlers::business::select_manga_tag))
         .route("/search", get(handlers::business::searching))
         .route(
             "/mangas/{mid}/images/{index}",
@@ -98,6 +100,10 @@ pub async fn service(config: Config, path: PathBuf) -> Result<(), DaemonError> {
         .route(
             "/tokens/{id}",
             get(handlers::tokens::select_tokens).patch(handlers::tokens::patch_tokens),
+        )
+        .route("/mangas/{mid}/tags", post(handlers::business::insert_manga_tag))
+        .route("/mangas/{mid}/tags/{tid}", 
+               delete(handlers::business::delete_tag_metadata)
         )
         .layer(from_fn_with_state(state.clone(), middleware::authorization));
 
